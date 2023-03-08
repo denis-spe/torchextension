@@ -1,0 +1,9 @@
+Metadata-Version: 2.1
+Name: torchextension
+Version: 0.0.1
+Summary: torch sequential extension
+Home-page: http://pypi.python.org/pypi/torchextension/
+Author: denis-spe
+Author-email: denisbrian07@gmail.com
+License: LICENSE.txt
+License-File: LICENSE.txt
