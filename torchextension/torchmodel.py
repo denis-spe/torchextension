@@ -113,10 +113,6 @@ class Sequential(nn.Module):
         """
         Train __model on train_data
         """
-        # Indicating the model to training
-        self.model.train()
-        
-        
        
         # Validation of data if it's torch dataset or 
         # DataLoader
