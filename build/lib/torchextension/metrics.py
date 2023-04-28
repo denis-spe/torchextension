@@ -2,7 +2,7 @@
 
 # import the necessary library
 import torch
-from metricsInterface import Metric
+from torchextension.metricsInterface import Metric
 from typing import Union
 from torch import Tensor
 

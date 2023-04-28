@@ -1,12 +1,11 @@
 # === Glory Be To God ====
-
-# import library
-import torch
 from typing import List, Dict, Optional, Union
-from torchmodel import Sequential
 
 
 class Hyperparameter(object):
+    # import library
+    import torch
+    
     """
     The class contains methods for setting
     the model parameter
@@ -180,7 +179,7 @@ class Tuner(object):
             return [models[list(objectives_scored.values())[i]] for i in range(len(objectives_scored))]
         return [models[list(objectives_scored.values())[i]] for i in range(n_models)]
 
-    def get_best_models(self, n_models: Union[int, str] = 1) -> List[Sequential]:
+    def get_best_models(self, n_models: Union[int, str] = 1):
         """
         Returns the list of best model.
 
@@ -194,7 +193,7 @@ class Tuner(object):
         return [model['__model'] for model in self.__best_models(n_models)]
 
     @property
-    def best_model(self) -> Sequential:
+    def best_model(self):
         """
         Return the best model from all the model.
 

@@ -2,6 +2,11 @@ LICENSE.txt
 MANIFEST.in
 README.txt
 setup.py
+test/__init__.py
+test/test_data_generator.py
+test/test_linear_sequential.py
+test/test_sequential_model.py
+test/test_tuner.py
 torchextension/__init__.py
 torchextension/data_generator.py
 torchextension/metrics.py
@@ -13,8 +18,3 @@ torchextension.egg-info/SOURCES.txt
 torchextension.egg-info/dependency_links.txt
 torchextension.egg-info/requires.txt
 torchextension.egg-info/top_level.txt
-torchextension/test/__init__.py
-torchextension/test/test_data_generator.py
-torchextension/test/test_linear_sequential.py
-torchextension/test/test_sequential_model.py
-torchextension/test/test_tuner.py

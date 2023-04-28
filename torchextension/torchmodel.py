@@ -1,15 +1,20 @@
+#pylint:disable=E1102
 # === Glory Be To God ====
 
 
 # import libraries
+import sys
+sys.path.append(sys.path[0].replace("tests", ""))
+
 import torch
-import random
 import time
+import numpy as np
 from tqdm import tqdm
 from typing import Iterator, Tuple, Dict, Callable, Union
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torchinfo import summary
+from torchextension.data_converter import DataConverter
 
 
 class Sequential(nn.Module):
@@ -99,22 +104,43 @@ class Sequential(nn.Module):
         else:
             return summary(self)
 
-    def train_process(self, data_loader, metric: Callable) -> Tuple[float, float, float, int]:
+    def train_process(
+        self, 
+        X: Union[np.ndarray, Dataset, DataLoader], 
+        y: np.ndarray = None, 
+        metric: Callable = None,  
+        **kwargs) -> Tuple[float, float, float, int]:
         """
         Train __model on train_data
         """
-        # Indicating the __model to training
-        # self.__model.train_sample()
-
-        # Number of images in  data_loader: size
-        size = len(data_loader.dataset)
+        # Indicating the model to training
+        self.model.train()
+        
+        
+       
+        # Validation of data if it's torch dataset or 
+        # DataLoader
+        data_loader  = self.__data_validator(
+                     X=X,
+                     y=y,
+                     **kwargs
+                     )
+        
+        if isinstance(data_loader, DataLoader):
+            # Number of images in  data_loader: size
+            size = len(data_loader.dataset)
+        else:
+            size = len(data_loader)
 
         # Initialize the metric variable
         total_score, total_loss, count_label, current = 0, 0, 0, 0
 
         start = time.time()
+ 
+        
         # iterate over the data_loader
         for batch, (x, y) in enumerate(data_loader):
+            
             # Switch to device
             x, y = x.to(self.device), y.to(self.device)
             
@@ -153,7 +179,8 @@ class Sequential(nn.Module):
 
             # Add every accuracy on total_acc
             # total_score += (predict == y).sum().item()
-            total_score += metric(yhat, y)
+            if metric:
+                total_score += metric(yhat, y)
 
             if batch % 100 == 0:
                 current += (batch / size)
@@ -166,19 +193,30 @@ class Sequential(nn.Module):
                 int(round(current * 100))
                 )
 
-    def evaluate(self, data_loader) -> Tuple[float, float]:
+    def evaluate(self, X, y=None, **kwargs) -> Tuple[float, float]:
         """
-        Evaluation __model with validation data
+        Evaluation  model with validation data
         """
-        # Directing __model to evaluation process
+        
+        # Directing model to evaluation process
         self.model.eval()
+        
+        # Validation of data if it's torch dataset or 
+        # DataLoader
+        data_loader  = self.__data_validator(
+                     X=X,
+                     y=y,
+                     **kwargs
+                     )
 
         # Instantiate metric variables
-        total_loss, total_acc, count_labels = 0, 0, 0
+        total_loss, total_score, count_labels = 0, 0, 0
 
         # Disabling gradient calculation
         with torch.no_grad():
-            for X, y in data_loader:
+            
+            for X, y in data_loader.dataset:
+                
                 # Set to device
                 X, y = X.to(self.device), y.to(self.device)
 
@@ -193,22 +231,47 @@ class Sequential(nn.Module):
 
                 # Add criterion loss to total_loss
                 total_loss += criterion.item()
-
-                # Sum accuracy to total_acc
-                total_acc += (predictions.argmax(1) == y).sum().item()
+                
+                # Calculate the metrics
+                if self.metrics_method is not None:
+                    total_score  += self.metrics_method(predictions, y)
 
             # Finally, return total_loss and total_acc which each is divided by
             # count_labels
-            return total_loss / count_labels, total_acc / count_labels
+            return total_loss / count_labels, total_score
+            
+    def __data_validator(
+    self, 
+    X, 
+    y=None, 
+    **kwargs):
+       if y is not None:
+            # Convert to torch Dataset 
+            data_loader = DataConverter(X, y)
+       else:
+            # It's  in torch Dataset
+            data_loader = X
+        
+        # Check if data_loader is instance of DataLoader   
+       if not isinstance(data_loader, DataLoader):
+           data_loader = DataLoader(data_loader, **kwargs)
+           try:
+               data_loader = data_loader.dataset.dataset
+           except AttributeError:
+               data_loader = data_loader.dataset
+               
+       return data_loader
 
     def fit(
             self,
-            train_data: DataLoader,
+            X: any,
+            y: any=None,
             epochs: int = 1,
             validation_data: DataLoader = None,
             verbose: bool = True,
             callbacks: list = None,
-            seed: int = 0
+            seed: int = 0,
+            **kwargs
     ):
         """
         The Fit method make use of train_sample data and
@@ -243,7 +306,7 @@ class Sequential(nn.Module):
                     time.sleep(0.1)
 
             # Train the data                
-            train = self.train_process(train_data, metric=self.metrics_method)
+            train = self.train_process(X, y, metric=self.metrics_method, **kwargs)
 
             # Instantiate train_sample loss and accuracy
             train_loss = round(train[0], 6)
