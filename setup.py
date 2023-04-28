@@ -7,7 +7,7 @@ setup(
    version='0.0.1',
    author='denis-spe',
    author_email='denisbrian07@gmail.com',
-   packages=['torchextension', 'test'],
+   packages=['torchextension', 'tests'],
    url='http://pypi.python.org/pypi/torchextension/',
    license='LICENSE.txt',
    description='torch sequential extension',

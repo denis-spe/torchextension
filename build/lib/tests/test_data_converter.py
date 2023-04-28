@@ -1,0 +1,67 @@
+# *** Holy is the Lord God **
+
+# Import library
+import sys
+sys.path.append(sys.path[0].replace("tests", ""))
+
+import unittest, torch
+from torchextension.data_converter import DataConverter
+from sklearn.datasets import make_classification, make_regression
+
+
+class TestDataConverter(unittest.TestCase):
+    
+    def setUp(self):
+        
+        # Initialize the number of sample and number of feature
+        n_samples = 100
+        n_features = 10
+        
+        # Make classification sample data.
+        self.class_X, self.class_y = make_classification(
+            n_samples=n_samples,
+            n_features=n_features
+        )
+        self.reg_X,  self.reg_y = make_regression(
+            n_samples=n_samples,
+            n_features=n_features
+        )
+        
+        # Instantiate the DataConverter.
+        self.data_converter_class = DataConverter(
+            X=self.class_X,
+            y=self.class_y
+        )
+        
+        self.data_converter_reg = DataConverter(
+            X=self.reg_X,
+            y=self.reg_y
+        )
+    
+    def test_len(self):
+        self.assertEqual(len(self.data_converter_class), 100)
+        self.assertEqual(len(self.data_converter_reg), 100)
+              
+    def test_index(self):
+        # Test classification
+        self.assertEqual(round(self.data_converter_class[0][0][0].item()), round(self.class_X[0][0]))
+        self.assertEqual(self.data_converter_class[0][1], self.class_y[0])
+        
+        # Test Regression
+        self.assertEqual(round(self.data_converter_reg[0][0][0].item()), round(self.reg_X[0][0]))
+        self.assertEqual(self.data_converter_reg[0][1], self.reg_y[0])
+        
+    
+    def test_dtype(self):
+             # Initialize the sample data from regression data converter class.
+             reg_X = self.data_converter_reg[0][0]
+             reg_y = self.data_converter_reg[0][1]
+             
+             self.assertTupleEqual(
+             (type(reg_X), type(reg_y)),
+             (torch.Tensor, torch.Tensor)
+             )
+             
+             
+if __name__ == '__main__':
+    unittest.main()
