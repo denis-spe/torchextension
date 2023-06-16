@@ -62,6 +62,12 @@ class TestDataConverter(unittest.TestCase):
              (torch.Tensor, torch.Tensor)
              )
              
+    def test_train_test_split(self):
+            # Get the length of samples
+            length = len(self.data_converter_class.train_test_split())
+            
+            # Check for how many samples are return
+            self.assertEqual(length, 2)
              
 if __name__ == '__main__':
     unittest.main()

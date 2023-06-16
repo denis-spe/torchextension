@@ -26,3 +26,26 @@ class DataConverter(Dataset):
                  y = self.target_transform(y)
              
              return X, y
+             
+    def train_test_split(self, trainsize: float=0.75, testsize: float=0.25, random_state: int = None):
+        from torch.utils.data import random_split
+        
+        # Get the whole number instead of float
+        # Since random_split uses whole number
+        # to divide the data
+        trainsize = int(len(self) * trainsize)
+        testsize = int(len(self) * testsize)
+        
+        
+        if random_state:
+            generator = torch.Generator().manual_seed(random_state)
+            return random_split(
+                self,
+                [trainsize, testsize],
+                generator=generator
+            )
+        
+        return random_split(
+            self,
+            [trainsize, testsize]
+        )

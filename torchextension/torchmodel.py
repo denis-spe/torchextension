@@ -10,11 +10,12 @@ import torch
 import time
 import numpy as np
 from tqdm import tqdm
-from typing import Iterator, Tuple, Dict, Callable, Union
+from typing import Iterator, Tuple, Dict, Callable, Union, List
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchinfo import summary
 from torchextension.data_converter import DataConverter
+from torchextension.metricsInterface import Metric
 
 
 class Sequential(nn.Module):
@@ -91,9 +92,9 @@ class Sequential(nn.Module):
     def forward(self, x):
         return self.__stacked_layers(x)
 
-    def compile(self, optimize: any, loss: any, metrics, device: Union[str, None] = 'cpu') -> None:
+    def compile(self, optimizer: any, loss: any, metrics: List[Metric], device: Union[str, None] = 'cpu') -> None:
         self.device = device
-        self.optim = optimize
+        self.optim = optimizer
         self.loss = loss
         self.model: Callable = Sequential(self.__layers).to(self.device)
         self.metrics_method = metrics

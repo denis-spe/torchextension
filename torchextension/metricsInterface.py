@@ -9,7 +9,7 @@ from torch import Tensor
 
 @dataclass
 class Metric(ABC):
-    name = ...
+    name: str = ...
 
     def __call__(self, y: Tensor, yhat: Tensor) -> Union[int, float]:
         pass
