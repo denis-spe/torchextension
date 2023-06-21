@@ -28,7 +28,8 @@ class TestSequential(unittest.TestCase):
         # Instantiate X and y
         X, y = make_classification(
         n_samples = n_samples,
-        n_features=self.cls_n_features
+        n_features=self.cls_n_features,
+        n_classes=2
         )
         
         cls_dataset = DataConverter(X, y=y)
@@ -146,18 +147,21 @@ class TestSequential(unittest.TestCase):
             layers=[
                 nn.Linear(
                 in_features=self.cls_n_features,
-                out_features=1012
+                out_features=1
                 ),
-                nn.ReLU(),
-                nn.Linear(1012,  2),
                 nn.Softmax()
             ]
         )
         
         # Compile the model
         model.compile(
-            optimizer=torch.optim.Adam(model.parameters())
+            optimizer=torch.optim.Adam(model.parameters()),
+            loss = nn.BCELoss(),
+            metrics = Accuracy()
         )
+        
+        # Fit the model.
+        model.fit(self.cls_train_data)
 
 
 if __name__ == '__main__':

@@ -59,7 +59,7 @@ class Sequential(nn.Module):
     >>>
     >>> # Compile the model .........
     >>> model.compile(
-    ... optimize=torch.optim.Adam(model.parameters()),
+    ... optimizer=torch.optim.Adam(model.parameters()),
     ... loss=nn.MSELoss(),
     ... metrics=MAE(),
     ... device=None

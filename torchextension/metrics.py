@@ -42,7 +42,10 @@ class Accuracy(Metric):
     name = "accuracy"
 
     def __call__(self, yhat: Tensor, y: Tensor) -> Union[int, float]:
-        _, predict = torch.max(yhat, 1)
+        try:
+            _, predict = torch.max(yhat, 1)
+        except IndexError:
+            predict = yhat
         return (predict == y).sum().item()
 
 

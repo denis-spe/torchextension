@@ -34,7 +34,7 @@ class TestSequential(unittest.TestCase):
    
     def test_compile(self):
          self.model.compile(
-             optimize=torch.optim.Adam(params=self.model.parameters()), 
+             optimizer=torch.optim.Adam(params=self.model.parameters()), 
              loss=nn.MSELoss(), 
              metrics=MSE()
          )
@@ -54,7 +54,7 @@ class TestSequential(unittest.TestCase):
     def test_fit_with_dataloader(self):
         # Compile the model
         self.model.compile(
-             optimize=torch.optim.Adam(params=self.model.parameters()), 
+             optimizer=torch.optim.Adam(params=self.model.parameters()), 
              loss=nn.MSELoss(), 
              metrics=MSE()
          )
@@ -71,7 +71,7 @@ class TestSequential(unittest.TestCase):
     def test_without_dataloader(self):
         # Compile the model
         self.model.compile(
-             optimize=torch.optim.Adam(params=self.model.parameters()), 
+             optimizer=torch.optim.Adam(params=self.model.parameters()), 
              loss=nn.MSELoss(), 
              metrics=MSE()
          )
@@ -85,7 +85,7 @@ class TestSequential(unittest.TestCase):
     def test_fit_X_y(self):
         # Compile the model
         self.model.compile(
-             optimize=torch.optim.Adam(params=self.model.parameters()), 
+             optimizer=torch.optim.Adam(params=self.model.parameters()), 
              loss=nn.MSELoss(), 
              metrics=MSE()
          )
@@ -100,7 +100,7 @@ class TestSequential(unittest.TestCase):
     def test_evaluate(self):
         # Compile the model
         self.model.compile(
-             optimize=torch.optim.Adam(params=self.model.parameters()), 
+             optimizer=torch.optim.Adam(params=self.model.parameters()), 
              loss=nn.MSELoss(), 
              metrics=MSE()
          )
