@@ -24,28 +24,28 @@ class Accuracy(Metric):
         _______
 
         >>> # predicted values and true values
-        >>> yhat = torch.tensor([[-0.221]])
+        >>> y_hat = torch.tensor([[-0.221]])
         >>> y = torch.tensor([[0.05]])
         >>>
         >>> # Initialize the mean absolute error class.
         >>> accuracy = Accuracy()
         >>>
         >>> # Get the error.
-        >>> assert accuracy(yhat, y) == 0
+        >>> assert accuracy(y_hat, y) == 0
         >>>
-        >>> yhat = torch.tensor([[1], [1], [1], [1]])
+        >>> y_hat = torch.tensor([[1], [1], [1], [1]])
         >>> y = torch.tensor([[1], [0], [1], [0]])
         >>>
-        >>> # print(accuracy(yhat, y))
-        >>> # 8
+        >>> assert accuracy(y_hat, y) == 8
+        >>>
     """
     name = "accuracy"
 
-    def __call__(self, yhat: Tensor, y: Tensor) -> Union[int, float]:
+    def __call__(self, y_hat: Tensor, y: Tensor) -> Union[int, float]:
         try:
-            _, predict = torch.max(yhat, 1)
+            _, predict = torch.max(y_hat, 1)
         except IndexError:
-            predict = yhat
+            predict = y_hat
         return (predict == y).sum().item()
 
 
@@ -66,20 +66,19 @@ class MSE(Metric):
         _______
 
         >>> # predicted values and true values
-        >>> yhat = torch.tensor([2.31, 1.432, 3.423, 24.2])
+        >>> y_hat = torch.tensor([2.31, 1.432, 3.423, 24.2])
         >>> y = torch.tensor([2.43, 1.345, 2.98, 23.4])
         >>>
         >>> # Initialize the mean absolute error class.
         >>> mse = MSE()
         >>>
         >>> # Get the error.
-        >>> # print(mse(yhat, y))
-        >>> # 0.02287660539150238
+        >>> assert  mse(y_hat, y) == 0.02287660539150238
     """
     name = "mse"
 
-    def __call__(self, yhat: Tensor, y: Tensor) -> Union[int, float]:
-        return (torch.mean(yhat - y) ** 2 / len(y)).item()
+    def __call__(self, y_hat: Tensor, y: Tensor) -> Union[int, float]:
+        return (torch.mean(y_hat - y) ** 2 / len(y)).item()
 
 
 class MAE(Metric):
@@ -99,17 +98,16 @@ class MAE(Metric):
     _______
 
     >>> # predicted values and true values
-    >>> yhat = torch.tensor([2.31, 1.432, 3.423, 24.2])
+    >>> y_hat = torch.tensor([2.31, 1.432, 3.423, 24.2])
     >>> y = torch.tensor([2.43, 1.345, 2.98, 23.4])
     >>>
     >>> # Initialize the mean absolute error class.
     >>> mae = MAE()
     >>>
     >>> # Get the error.
-    >>> # print(mae(yhat, y))
-    >>> # 0.3625003397464752
+    >>> assert mae(y_hat, y) == 0.3625003397464752
     """
     name = "mae"
 
-    def __call__(self, yhat: Tensor, y: Tensor) -> Union[int, float]:
-        return torch.mean(torch.abs(yhat - y)).item()
+    def __call__(self, y_hat: Tensor, y: Tensor) -> Union[int, float]:
+        return torch.mean(torch.abs(y_hat - y)).item()

@@ -41,7 +41,7 @@ class TestSequential(unittest.TestCase):
          
          # Test the Optimize.
          self.assertIsInstance(
-              self.model.optim,
+              self.model.optimizer,
               torch.optim.Adam
           )
           

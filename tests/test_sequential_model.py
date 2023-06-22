@@ -1,43 +1,39 @@
 # ** Glory Be To God **
 
 import sys
-sys.path.append(sys.path[0].replace("tests", ""))
-
 import unittest
+
 import torch
+from sklearn.datasets import make_classification
 from torch import nn
+
+sys.path.append(sys.path[0].replace("tests", ""))
 from torchextension.torchmodel import Sequential
 from torchextension.metrics import Accuracy
-from torchvision.datasets import MNIST
-from torch.utils.data import DataLoader
-from torchvision.transforms import ToTensor
 from torchextension.data_converter import DataConverter
-from sklearn.datasets import make_classification
 
 
 class TestSequential(unittest.TestCase):
 
     def setUp(self):
-        
         # Create some data with classification target label.
-        
+
         # Initialize the number of features and samples
         self.cls_n_features = 20
         n_samples = 6000
-        
+
         # Instantiate X and y
         X, y = make_classification(
-        n_samples = n_samples,
-        n_features=self.cls_n_features,
-        n_classes=2
+            n_samples=n_samples,
+            n_features=self.cls_n_features,
+            n_classes=2
         )
-        
+
         cls_dataset = DataConverter(X, y=y)
         data_split = cls_dataset.train_test_split()
         self.cls_train_data = data_split[0]
         self.cls_valid_data = data_split[1]
-        
-        
+
         """
         # Initialize train_sample and validation data ..........
         self.train = MNIST(root='.', train=True, download=True, transform=ToTensor())
@@ -140,26 +136,26 @@ class TestSequential(unittest.TestCase):
         self.assertListEqual(list(history.keys()), ["accuracy", "loss"])
         self.failIf("loss" not in history.keys())
     """
-    
+
     def test_model_with_classification_data(self):
         # Instantiate the Sequential model
         model = Sequential(
             layers=[
                 nn.Linear(
-                in_features=self.cls_n_features,
-                out_features=1
+                    in_features=self.cls_n_features,
+                    out_features=1
                 ),
-                nn.Softmax()
+                nn.Softmax(dim=-1)
             ]
         )
-        
+
         # Compile the model
         model.compile(
             optimizer=torch.optim.Adam(model.parameters()),
-            loss = nn.BCELoss(),
-            metrics = Accuracy()
+            loss=nn.BCELoss(),
+            metrics=Accuracy()
         )
-        
+
         # Fit the model.
         model.fit(self.cls_train_data)
 

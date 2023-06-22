@@ -29,12 +29,12 @@ class TestDataConverter(unittest.TestCase):
         
         # Instantiate the DataConverter.
         self.data_converter_class = DataConverter(
-            X=self.class_X,
+            x=self.class_X,
             y=self.class_y
         )
         
         self.data_converter_reg = DataConverter(
-            X=self.reg_X,
+            x=self.reg_X,
             y=self.reg_y
         )
     

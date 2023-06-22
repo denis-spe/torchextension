@@ -11,7 +11,7 @@ setup(
    url='http://pypi.python.org/pypi/torchextension/',
    license='LICENSE.txt',
    description='torch sequential extension',
-   long_description=open('README.txt').read(),
+   long_description=open('README.md').read(),
    install_requires=[
       'torchinfo',
       'tqdm'
