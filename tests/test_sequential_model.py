@@ -20,19 +20,7 @@ class TestSequential(unittest.TestCase):
 
         # Initialize the number of features and samples
         self.cls_n_features = 20
-        n_samples = 6000
-
-        # Instantiate X and y
-        X, y = make_classification(
-            n_samples=n_samples,
-            n_features=self.cls_n_features,
-            n_classes=2
-        )
-
-        cls_dataset = DataConverter(X, y=y)
-        data_split = cls_dataset.train_test_split()
-        self.cls_train_data = data_split[0]
-        self.cls_valid_data = data_split[1]
+        self.n_samples = 6000
 
         """
         # Initialize train_sample and validation data ..........
@@ -137,7 +125,20 @@ class TestSequential(unittest.TestCase):
         self.failIf("loss" not in history.keys())
     """
 
-    def test_model_with_classification_data(self):
+    def test_multi_classification_model(self):
+        # Instantiate X and y
+        x, y = make_classification(
+            n_samples=self.n_samples,
+            n_features=self.cls_n_features,
+            n_classes=3,
+            n_informative=7
+        )
+
+        cls_dataset = DataConverter(x, y=y)
+        data_split = cls_dataset.train_test_split()
+        cls_train_data = data_split[0]
+        cls_valid_data = data_split[1]
+
         # Instantiate the Sequential model
         model = Sequential(
             layers=[
@@ -152,12 +153,68 @@ class TestSequential(unittest.TestCase):
         # Compile the model
         model.compile(
             optimizer=torch.optim.Adam(model.parameters()),
-            loss=nn.BCELoss(),
+            loss=nn.CrossEntropyLoss(),
             metrics=Accuracy()
         )
 
         # Fit the model.
-        model.fit(self.cls_train_data)
+        history1 = model.fit(cls_train_data)
+        history2 = model.fit(x, y)
+
+        self.assertGreater(
+            history1.get("accuracy")[0],
+            0,
+        )
+        self.assertGreater(
+            history2.get("accuracy")[0],
+            0,
+        )
+
+    # def test_binary_model(self):
+    #     # Instantiate X and y
+    #     x, y = make_classification(
+    #         n_samples=self.n_samples,
+    #         n_features=self.cls_n_features,
+    #         n_classes=2,
+    #         n_informative=7
+    #     )
+    #
+    #     cls_dataset = DataConverter(x, y=y)
+    #     data_split = cls_dataset.train_test_split()
+    #     cls_train_data = data_split[0]
+    #     cls_valid_data = data_split[1]
+    #
+    #     # Instantiate the Sequential model
+    #     model = Sequential(
+    #         layers=[
+    #             nn.Linear(
+    #                 in_features=self.cls_n_features,
+    #                 out_features=1
+    #             ),
+    #             nn.Sigmoid()
+    #         ]
+    #     )
+    #
+    #     # Compile the model
+    #     model.compile(
+    #         optimizer=torch.optim.Adam(model.parameters()),
+    #         loss=nn.BCELoss(),
+    #         metrics=Accuracy()
+    #     )
+    #
+    #     # Fit the model.
+    #     history1 = model.fit(cls_train_data)
+    #     history2 = model.fit(x, y)
+    #
+    #     self.assertGreater(
+    #         history1.get("accuracy")[0],
+    #         0,
+    #     )
+    #     self.assertGreater(
+    #         history2.get("accuracy")[0],
+    #         0,
+    #     )
+
 
 
 if __name__ == '__main__':

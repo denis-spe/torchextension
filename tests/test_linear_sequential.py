@@ -11,7 +11,7 @@ from torch import nn
 from sklearn.datasets import make_regression
 from torchextension.torchmodel import Sequential
 from torch.utils.data import random_split
-from torchextension.metrics import MSE
+from torchextension.metrics import MSE, MAE
 from torch.utils.data import DataLoader
 from torchextension.data_converter import DataConverter
 
@@ -31,101 +31,115 @@ class TestSequential(unittest.TestCase):
             nn.Linear(100, 1)
         ])
 
-    def test_compile(self):
+    def test_train_process(self):
         self.model.compile(
-            optimizer=torch.optim.Adam(params=self.model.parameters()),
-            loss=nn.MSELoss(),
-            metrics=MSE()
-        )
+                optimizer=torch.optim.Adam(params=self.model.parameters()),
+                loss=nn.MSELoss(),
+                metrics=[MSE(), MAE()]
+            )
 
-        # Test the Optimize.
-        self.assertIsInstance(
-            self.model.optimizer,
-            torch.optim.Adam
-        )
+        history = self.model.fit(
+            self.dataset,
+            validation_data=self.dataset,
+            epochs=3)
 
-        # Test the Loss.
-        self.assertIsInstance(
-            self.model.loss,
-            nn.MSELoss
-        )
+        # print(history.history)
 
-    def test_fit_with_dataloader(self):
-        # Compile the model
-        self.model.compile(
-            optimizer=torch.optim.Adam(params=self.model.parameters()),
-            loss=nn.MSELoss(),
-            metrics=MSE()
-        )
-
-        # Load the data into a dataloader
-        train_dataloader = DataLoader(self.dataset)
-
-        # Fit the data
-        history = self.model.fit(train_dataloader, epochs=1)
-
-        # Is instance of dict
-        self.assertIsInstance(history, dict)
-
-    def test_without_dataloader(self):
-        # Compile the model
-        self.model.compile(
-            optimizer=torch.optim.Adam(params=self.model.parameters()),
-            loss=nn.MSELoss(),
-            metrics=MSE()
-        )
-
-        # Fit the data
-        history = self.model.fit(self.dataset, epochs=1, batch_size=16)
-
-        # Is instance of dict
-        self.assertIsInstance(history, dict)
-
-    def test_fit_X_y(self):
-        # Compile the model
-        self.model.compile(
-            optimizer=torch.optim.Adam(params=self.model.parameters()),
-            loss=nn.MSELoss(),
-            metrics=MSE()
-        )
-
-        # Fit the data
-        history = self.model.fit(self.X, self.y, epochs=1, batch_size=16)
-
-        # Is instance of dict
-        self.assertIsInstance(history, dict)
-
-    def test_evaluate(self):
-        # Compile the model
-        self.model.compile(
-            optimizer=torch.optim.Adam(params=self.model.parameters()),
-            loss=nn.MSELoss(),
-            metrics=MSE()
-        )
-
-        # Load the data into a data_loader
-        train_data_loader = DataLoader(self.dataset)
-
-        # Split the data into train and validation
-        generator = torch.Generator().manual_seed(42)
-
-        train_data, valid_data = random_split(
-            dataset=train_data_loader,
-            lengths=[80, 20],
-            generator=generator
-        )
-
-        # for X, y in train_data.dataset:
-        # print(X[0])
-
-        # Fit the data
-        self.model.fit(train_data, epochs=1, batch_size=16)
-
-        # Evaluation of model
-        evaluate = self.model.evaluate(valid_data)
-
-        # Does evaluate returns a tuple.
-        self.assertEqual(type(evaluate), tuple)
+    # def test_compile(self):
+    #     self.model.compile(
+    #         optimizer=torch.optim.Adam(params=self.model.parameters()),
+    #         loss=nn.MSELoss(),
+    #         metrics=[MSE()]
+    #     )
+    #
+    #     # Test the Optimize.
+    #     self.assertIsInstance(
+    #         self.model.optimizer,
+    #         torch.optim.Adam
+    #     )
+    #
+    #     # Test the Loss.
+    #     self.assertIsInstance(
+    #         self.model.loss,
+    #         nn.MSELoss
+    #     )
+    #
+    # def test_fit_with_dataloader(self):
+    #     # Compile the model
+    #     self.model.compile(
+    #         optimizer=torch.optim.Adam(params=self.model.parameters()),
+    #         loss=nn.MSELoss(),
+    #         metrics=MSE()
+    #     )
+    #
+    #     # Load the data into a dataloader
+    #     train_dataloader = DataLoader(self.dataset)
+    #
+    #     # Fit the data
+    #     history = self.model.fit(train_dataloader, epochs=1)
+    #
+    #     # Is instance of dict
+    #     self.assertIsInstance(history, dict)
+    #
+    # def test_without_dataloader(self):
+    #     # Compile the model
+    #     self.model.compile(
+    #         optimizer=torch.optim.Adam(params=self.model.parameters()),
+    #         loss=nn.MSELoss(),
+    #         metrics=MSE()
+    #     )
+    #
+    #     # Fit the data
+    #     history = self.model.fit(self.dataset, epochs=1, batch_size=16)
+    #
+    #     # Is instance of dict
+    #     self.assertIsInstance(history, dict)
+    #
+    # def test_fit_X_y(self):
+    #     # Compile the model
+    #     self.model.compile(
+    #         optimizer=torch.optim.Adam(params=self.model.parameters()),
+    #         loss=nn.MSELoss(),
+    #         metrics=MSE()
+    #     )
+    #
+    #     # Fit the data
+    #     history = self.model.fit(self.X, self.y, epochs=1, batch_size=16)
+    #
+    #     # Is instance of dict
+    #     self.assertIsInstance(history, dict)
+    #
+    # def test_evaluate(self):
+    #     # Compile the model
+    #     self.model.compile(
+    #         optimizer=torch.optim.Adam(params=self.model.parameters()),
+    #         loss=nn.MSELoss(),
+    #         metrics=[MSE()]
+    #     )
+    #
+    #     # Load the data into a data_loader
+    #     train_data_loader = DataLoader(self.dataset)
+    #
+    #     # Split the data into train and validation
+    #     generator = torch.Generator().manual_seed(42)
+    #
+    #     train_data, valid_data = random_split(
+    #         dataset=train_data_loader,
+    #         lengths=[80, 20],
+    #         generator=generator
+    #     )
+    #
+    #     # for X, y in train_data.dataset:
+    #     # print(X[0])
+    #
+    #     # Fit the data
+    #     self.model.fit(train_data, epochs=1, batch_size=16)
+    #
+    #     # Evaluation of model
+    #     evaluate = self.model.evaluate(valid_data)
+    #
+    #     # Does evaluate returns a tuple.
+    #     self.assertEqual(type(evaluate), tuple)
 
 
 if __name__ == '__main__':

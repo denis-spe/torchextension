@@ -5,7 +5,8 @@
 # import libraries
 import sys
 import time
-from typing import Tuple, Callable, Union, List
+from typing import Callable, Union, List
+from torchextension.history import History
 
 import numpy as np
 import torch
@@ -15,7 +16,7 @@ from torchinfo import summary
 from tqdm import tqdm
 
 from torchextension.data_converter import DataConverter
-from torchextension.metricsInterface import Metric
+from torchextension.metrics import Metric
 
 sys.path.append(sys.path[0].replace("tests", ""))
 
@@ -79,7 +80,7 @@ class Sequential(_nn.Module):
     >>> model.compile(
     ... optimizer=torch.optim.Adam(model.parameters()),
     ... loss=nn.BCELoss(),
-    ... metrics=Accuracy(),
+    ... metrics=[Accuracy()],
     ... device=None
     ... )
     >>>
@@ -95,6 +96,7 @@ class Sequential(_nn.Module):
     """
 
     def __init__(self, layers: List) -> None:
+        self.logs = None
         self.metrics_method = None
         self.model = None
         self.loss = None
@@ -104,6 +106,7 @@ class Sequential(_nn.Module):
         super(Sequential, self).__init__()
         self.__stacked_layers = _nn.Sequential(*self.__layers)
         self.model_training = True
+        self.__history: History = History()
 
     def forward(self, x):
         return self.__stacked_layers(x)
@@ -114,6 +117,8 @@ class Sequential(_nn.Module):
         self.loss = loss
         self.model: Callable = Sequential(self.__layers).to(self.device)
         self.metrics_method = metrics
+        self.__history = History(metrics=metrics)
+        self.logs = self.__history.logs
 
     def summaries(self, input_size=None):
         if input_size:
@@ -125,8 +130,7 @@ class Sequential(_nn.Module):
             self,
             x: Union[np.ndarray, Dataset, DataLoader],
             y: np.ndarray = None,
-            metric: Callable = None,
-            **kwargs) -> Tuple[float, float, float, int]:
+            **kwargs) -> History:
         """
         Train __model on train_data
         """
@@ -139,17 +143,8 @@ class Sequential(_nn.Module):
             **kwargs
         )
 
-        if isinstance(data_loader, DataLoader):
-            # Number of images in  data_loader: size
-            size = len(data_loader.dataset)
-
-        else:
-            size = len(data_loader)
-
         # Initialize the metric variable
-        total_score, total_loss, count_label, current = 0, 0, 0, 0
-
-        start = time.time()
+        loss_list, y_list, y_hat_list = [], [], []
 
         # iterate over the data_loader
         for batch, (x, y) in enumerate(data_loader):
@@ -181,31 +176,24 @@ class Sequential(_nn.Module):
             # Adjust the parameters by gradient collected in the backward pass
             self.optimizer.step()
 
-            # Count number of labels
-            count_label += len(y)
+            # Append y, y_hat and loss to list
+            y_list.append(y.item())
+            y_hat_list.append(yhat.item())
+            loss_list.append(criterion.item())
 
-            # sum each loss to total_loss variable
-            total_loss += criterion.item()
+        # Add new loss, y_hat and y on
+        self.__history.add_loss_pred_and_y(
+            torch.tensor(loss_list),
+            torch.tensor(y_hat_list),
+            torch.tensor(y_list)
+        )
 
-            # _, predict = torch.max(yhat, 1)
+        # Handle metrics
+        self.__history.metrics_handler()
 
-            # Add every accuracy on total_acc
-            # total_score += (predict == y).sum().item()
-            if metric:
-                total_score += metric(yhat, y)
+        return self.__history
 
-            if batch % 100 == 0:
-                current += (batch / size)
-
-        stop = time.time()
-        time_taken = round(stop - start, 3)
-
-        return (total_loss / count_label,
-                total_score / count_label, time_taken,
-                int(round(current * 100))
-                )
-
-    def evaluate(self, X, y=None, **kwargs) -> Tuple[float, float]:
+    def evaluate(self, x, y=None, **kwargs) -> History:
         """
         Evaluation  model with validation data
         """
@@ -216,41 +204,42 @@ class Sequential(_nn.Module):
         # Validation of data if it's torch dataset or 
         # DataLoader
         data_loader = self.__data_validator(
-            x=X,
+            x=x,
             y=y,
             **kwargs
         )
 
-        # Instantiate metric variables
-        total_loss, total_score, count_labels = 0, 0, 0
+        # Initialize the metric variable
+        loss_list, y_list, y_hat_list = [], [], []
 
         # Disabling gradient calculation
         with torch.no_grad():
-
-            for X, y in data_loader:
-
+            for x, y in data_loader:
                 # Set to device
-                X, y = X.to(self.device), y.to(self.device)
+                x, y = x.to(self.device), y.to(self.device)
 
                 # Make prediction
-                predictions = self.model(X)
+                predictions = self.model(x)
 
                 # Compute the loss(error)
                 criterion = self.loss(predictions, y)
 
-                # Add number of label to count_labels
-                count_labels += len(y)
+                # Add loss, y and predictions to empty lists
+                loss_list.append(criterion.item())
+                y_list.append(y)
+                y_hat_list.append(predictions)
 
-                # Add criterion loss to total_loss
-                total_loss += criterion.item()
+                # Add new loss, y_hat and y on
+                self.__history.add_loss_pred_and_y(
+                    torch.tensor(loss_list),
+                    torch.tensor(y_hat_list),
+                    torch.tensor(y_list),
+                    train=False
+                )
 
-                # Calculate the metrics
-                if self.metrics_method is not None:
-                    total_score += self.metrics_method(predictions, y)
-
-            # Finally, return total_loss and total_acc which each is divided by
-            # count_labels
-            return total_loss / count_labels, total_score
+                # Handle metrics
+                self.__history.metrics_handler(train=False)
+                return self.__history
 
     @staticmethod
     def __data_validator(
@@ -272,15 +261,15 @@ class Sequential(_nn.Module):
 
     def fit(
             self,
-            X: any,
+            x: any,
             y: any = None,
             epochs: int = 1,
-            validation_data: DataLoader = None,
+            validation_data: any = None,
             verbose: bool = True,
             callbacks: list = None,
             seed: int = 0,
             **kwargs
-    ):
+    ) -> History:
         """
         The Fit method make use of train_sample data and
         validation data if provided
@@ -292,16 +281,11 @@ class Sequential(_nn.Module):
         :param verbose: (bool) Sequential training progress.
         :param validation_data: (DataLoader) Data to validate the model.
         :param epochs: (int) number of training iteration.
-        :param train_data: (DataLoader) Data to train_sample the model.
+        :param x: (DataLoader) x data to train the model.
+        :param y: (DataLoader) y data to train the model.
 
         :return: model's history.
         """
-        # Initializing variable for storing metric score
-        metrics = {}
-        score_list = []
-        loss_list = []
-        valid_acc_list = []
-        valid_loss_list = []
 
         # Set the reproducibility.
         torch.manual_seed(seed)
@@ -310,38 +294,41 @@ class Sequential(_nn.Module):
         for epoch in range(epochs):
             if verbose:
                 print(f"\033[1m\nEpoch {epoch + 1}/{epochs}\033[0m")
-                for _ in tqdm(range(100), ascii="•\\", bar_format='{l_bar}{bar:30}|'):
+                for _ in tqdm(range(100), ascii="•\\", bar_format='{l_bar}{bar:30}|', postfix=" "):
                     time.sleep(0.1)
 
-            # Train the data                
-            train = self.train_process(X, y, metric=self.metrics_method, **kwargs)
-
-            # Instantiate train_sample loss and accuracy
-            train_loss = round(train[0], 6)
-            train_score = round(train[1], 5)
+            # Train the data return loss,
+            train_metric = self.train_process(x, y, **kwargs)
 
             if verbose:
-                print(
-                    f" loss: {train_loss} - {self.metrics_method.name}: {train_score} - \
-ETA: {round(train[2] * 100, 2)}ms",
-                    end="")
-
-            # Storing the __model score
-            score_list.append(train_score)
-            loss_list.append(train_loss)
+                # Train logs
+                train_logs = train_metric.logs.items()
+                # Loop over the train logs
+                for idx, (key, value) in enumerate(train_logs):
+                    if not key.startswith("val"):
+                        print(f"{key}: {value[-1]} ", end="")
+                        if idx != len(train_logs) - 1:
+                            print(" - ", end="")
 
             if validation_data:
-                valid = self.evaluate(validation_data)
-                # Instantiate train_sample loss and accuracy
-                valid_loss = round(valid[0], 6)
-                valid_acc = round(valid[1], 4)
+                valid_metrics = self.evaluate(validation_data)
+
+                if epoch == 0:
+                    print(" - ", end="")
 
                 if verbose:
-                    print(f"- val_loss: {valid_loss} - val_{self.metrics_method.name}: {valid_acc}")
+                    # Train logs
+                    valid_logs = valid_metrics.logs.items()
 
-                # Store the score
-                valid_loss_list.append(valid_loss)
-                valid_acc_list.append(valid_acc)
+                    # Loop over the train logs
+                    for idx, (key, value) in enumerate(valid_logs):
+                        if key.startswith("val"):
+                            print(f"{key}: {value[-1]}", end="")
+                            if idx != len(valid_logs) - 1:
+                                print(" - ", end="")
+
+            if epoch == epochs - 1:
+                print(end="\n")
 
             if not self.model_training:
                 # Break the training loop if model_training is false
@@ -349,16 +336,9 @@ ETA: {round(train[2] * 100, 2)}ms",
 
             if callbacks:
                 for callback in callbacks:
-                    callback(self, metrics)
+                    callback(self, self.logs)
 
-        metrics[self.metrics_method.name] = score_list
-        metrics["loss"] = loss_list
-
-        if validation_data:
-            metrics["val_" + self.metrics_method.name] = valid_acc_list
-            metrics["val_loss"] = valid_loss_list
-
-        return metrics
+        return self.__history
 
     def predict(self, y: torch.tensor) -> torch.tensor:
         # list storage for predictions

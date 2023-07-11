@@ -1,5 +1,7 @@
 torch
-torchinfo
-tqdm
-setuptools
-numpy
+torchinfo~=1.8.0
+tqdm~=4.64.1
+setuptools~=66.0.0
+numpy~=1.24.3
+torchvision~=0.15.2
+scikit-learn~=1.2.2
