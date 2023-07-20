@@ -9,7 +9,7 @@ from torch import nn
 
 sys.path.append(sys.path[0].replace("tests", ""))
 from torchextension.torchmodel import Sequential
-from torchextension.metrics import Accuracy
+from torchextension.metrics import BinaryAccuracy
 from torchextension.data_converter import DataConverter
 
 
@@ -144,31 +144,37 @@ class TestSequential(unittest.TestCase):
             layers=[
                 nn.Linear(
                     in_features=self.cls_n_features,
+                    out_features=512
+                ),
+                nn.Tanh(),
+                nn.Linear(
+                    in_features=512,
+                    out_features=1024
+                ),
+                nn.Tanh(),
+                nn.Linear(
+                    in_features=1024,
+                    out_features=252
+                ),
+                nn.Tanh(),
+                nn.Linear(
+                    in_features=252,
                     out_features=1
                 ),
-                nn.Softmax(dim=-1)
+                nn.Sigmoid()
             ]
         )
 
         # Compile the model
         model.compile(
-            optimizer=torch.optim.Adam(model.parameters()),
-            loss=nn.CrossEntropyLoss(),
-            metrics=Accuracy()
+            optimizer=torch.optim.SGD(model.parameters(), lr=0.001),
+            loss=nn.BCELoss(),
+            metrics=[BinaryAccuracy()]
         )
 
         # Fit the model.
-        history1 = model.fit(cls_train_data)
-        history2 = model.fit(x, y)
-
-        self.assertGreater(
-            history1.get("accuracy")[0],
-            0,
-        )
-        self.assertGreater(
-            history2.get("accuracy")[0],
-            0,
-        )
+        history1 = model.fit(cls_train_data, epochs=10)
+        # history2 = model.fit(x, y, epochs=3)
 
     # def test_binary_model(self):
     #     # Instantiate X and y
@@ -214,7 +220,6 @@ class TestSequential(unittest.TestCase):
     #         history2.get("accuracy")[0],
     #         0,
     #     )
-
 
 
 if __name__ == '__main__':

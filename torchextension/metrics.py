@@ -110,8 +110,8 @@ class MSE(Metric):
         return "mse"
 
     def __call__(self, y_hat: Tensor, y: Tensor) -> Union[int, float]:
-        import torch
-        return (torch.mean(y_hat - y) ** 2 / len(y)).item()
+        from sklearn.metrics import mean_squared_error
+        return mean_squared_error(y, y_hat)
 
 
 class MAE(Metric):
@@ -148,7 +148,8 @@ class MAE(Metric):
 
     def __call__(self, y_hat: Tensor, y: Tensor) -> Union[int, float]:
         import torch
-        return torch.mean(torch.abs(y_hat - y)).item()
+        from sklearn.metrics import mean_absolute_error
+        return mean_absolute_error(y, y_hat)
 
 
 class BinaryAccuracy(Metric):
@@ -195,10 +196,10 @@ class BinaryAccuracy(Metric):
         import torch
         predictions = torch.tensor([
             1 if value > threshold else 0
-            for value in y_hat
-        ])
+            for value in y_hat.view(-1, 1)
+        ]).view(-1, 1)
 
         # Instantiate the Accuracy
         accuracy = Accuracy()
 
-        return accuracy(predictions, y)
+        return accuracy(predictions, y.view(-1, 1))

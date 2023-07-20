@@ -96,37 +96,43 @@ class Sequential(_nn.Module):
     """
 
     def __init__(self, layers: List) -> None:
-        self.logs = None
-        self.metrics_method = None
-        self.model = None
-        self.loss = None
-        self.optimizer = None
-        self.device = None
-        self.__layers = layers
         super(Sequential, self).__init__()
-        self.__stacked_layers = _nn.Sequential(*self.__layers)
-        self.model_training = True
+        self.logs = None
+        self.__metrics_method = None
+        self.__model = None
+        self.__loss = None
+        self.__optimizer = None
+        self.__device = None
+        self.__layers = layers
+        self.__stacked_layers: _nn.Sequential = _nn.Sequential(*self.__layers)
+        self.__model_training: bool = True
         self.__history: History = History()
 
     def forward(self, x):
         return self.__stacked_layers(x)
 
-    def compile(self, optimizer: any, loss: any, metrics: List[Metric], device: Union[str, None] = 'cpu') -> None:
-        self.device = device
-        self.optimizer = optimizer
-        self.loss = loss
-        self.model: Callable = Sequential(self.__layers).to(self.device)
-        self.metrics_method = metrics
+    def compile(
+            self,
+            optimizer: any,
+            loss: any,
+            metrics: List[Metric],
+            device: Union[str, None] = 'cpu'
+    ) -> None:
+        self.__device = device
+        self.__optimizer = optimizer
+        self.__loss = loss
+        self.__model: Callable = Sequential(self.__layers).to(self.__device)
+        self.__metrics_method = metrics
         self.__history = History(metrics=metrics)
         self.logs = self.__history.logs
 
-    def summaries(self, input_size=None):
+    def __summaries(self, input_size=None):
         if input_size:
             return summary(self, input_size=input_size)
         else:
             return summary(self)
 
-    def train_process(
+    def __train_process(
             self,
             x: Union[np.ndarray, Dataset, DataLoader],
             y: np.ndarray = None,
@@ -150,31 +156,31 @@ class Sequential(_nn.Module):
         for batch, (x, y) in enumerate(data_loader):
 
             # Switch to device
-            x, y = x.to(self.device), y.to(self.device)
+            x, y = x.to(self.__device), y.to(self.__device)
 
-            if self.model is None:
+            if self.__model is None:
                 raise TypeError('Compile the model before fitting it with `model.compile`')
             else:
                 # Make prediction
-                yhat = self.model(x)
+                yhat = self.__model(x)
 
             # *** Backpropagation Process ***
 
             # Compute error by measure the degree of dissimilarity
             # from obtained result in target
-            criterion = self.loss(yhat, y)
+            criterion = self.__loss(yhat, y)
 
             # Reset the gradient of the model parameters
             # Gradients by default add up; to prevent double-counting,
             # we explicitly zero them at each iteration.
-            self.optimizer.zero_grad()
+            self.__optimizer.zero_grad()
 
             # Back propagate the prediction loss to deposit the gradient of loss
             # for learnable parameters
             criterion.backward()
 
             # Adjust the parameters by gradient collected in the backward pass
-            self.optimizer.step()
+            self.__optimizer.step()
 
             # Append y, y_hat and loss to list
             y_list.append(y.item())
@@ -193,13 +199,13 @@ class Sequential(_nn.Module):
 
         return self.__history
 
-    def evaluate(self, x, y=None, **kwargs) -> History:
+    def __evaluate(self, x, y=None, **kwargs) -> History:
         """
         Evaluation  model with validation data
         """
 
         # Directing model to evaluation process
-        self.model.eval()
+        self.__model.eval()
 
         # Validation of data if it's torch dataset or 
         # DataLoader
@@ -216,13 +222,13 @@ class Sequential(_nn.Module):
         with torch.no_grad():
             for x, y in data_loader:
                 # Set to device
-                x, y = x.to(self.device), y.to(self.device)
+                x, y = x.to(self.__device), y.to(self.__device)
 
                 # Make prediction
-                predictions = self.model(x)
+                predictions = self.__model(x)
 
                 # Compute the loss(error)
-                criterion = self.loss(predictions, y)
+                criterion = self.__loss(predictions, y)
 
                 # Add loss, y and predictions to empty lists
                 loss_list.append(criterion.item())
@@ -298,7 +304,7 @@ class Sequential(_nn.Module):
                     time.sleep(0.1)
 
             # Train the data return loss,
-            train_metric = self.train_process(x, y, **kwargs)
+            train_metric = self.__train_process(x, y, **kwargs)
 
             if verbose:
                 # Train logs
@@ -306,12 +312,12 @@ class Sequential(_nn.Module):
                 # Loop over the train logs
                 for idx, (key, value) in enumerate(train_logs):
                     if not key.startswith("val"):
-                        print(f"{key}: {value[-1]} ", end="")
+                        print("%s : %.4f" % (key, value[-1]), end="")
                         if idx != len(train_logs) - 1:
                             print(" - ", end="")
 
             if validation_data:
-                valid_metrics = self.evaluate(validation_data)
+                valid_metrics = self.__evaluate(validation_data)
 
                 if epoch == 0:
                     print(" - ", end="")
@@ -323,14 +329,14 @@ class Sequential(_nn.Module):
                     # Loop over the train logs
                     for idx, (key, value) in enumerate(valid_logs):
                         if key.startswith("val"):
-                            print(f"{key}: {value[-1]}", end="")
+                            print("%s : %.4f" % (key, value[-1]), end="")
                             if idx != len(valid_logs) - 1:
                                 print(" - ", end="")
 
             if epoch == epochs - 1:
                 print(end="\n")
 
-            if not self.model_training:
+            if not self.__model_training:
                 # Break the training loop if model_training is false
                 break
 
@@ -355,17 +361,17 @@ class Sequential(_nn.Module):
             # Loop over the values in y
             for val in data:
                 # switch to device
-                val = val.to(self.device)
-                if self.metrics_method.name in ['mae', 'mse']:
+                val = val.to(self.__device)
+                if self.__metrics_method.name in ['mae', 'mse']:
                     # Make prediction
-                    predict = self.model(val)
+                    predict = self.__model(val)
 
                     # Append the predictions to the list
                     predictions.append(predict.item())
 
                 else:
                     # Make prediction
-                    probability = self.model(val)
+                    probability = self.__model(val)
 
                     # probability variable returns probability
                     # Therefor convert it to actual value
@@ -375,4 +381,4 @@ class Sequential(_nn.Module):
                     predictions.append(prediction)
         return predictions
 
-#                                   Glory Be to God
+#                                   Glory Be to Lord
