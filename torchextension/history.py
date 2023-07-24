@@ -1,12 +1,12 @@
 import torch
 from dataclasses import dataclass
 from typing import Dict, List, Union
-from torchextension.metrics import Metric
+from torchextension.metrics import MetricImpl
 
 
 @dataclass
 class History:
-    def __init__(self, metrics: List[Metric] = None) -> None:
+    def __init__(self, metrics: List[MetricImpl] = None) -> None:
         self.metrics = metrics
         self.__loss = None
         self.__y = None

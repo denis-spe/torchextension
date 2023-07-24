@@ -16,7 +16,7 @@ from torchinfo import summary
 from tqdm import tqdm
 
 from torchextension.data_converter import DataConverter
-from torchextension.metrics import Metric
+from torchextension.metrics import MetricImpl
 
 sys.path.append(sys.path[0].replace("tests", ""))
 
@@ -115,7 +115,7 @@ class Sequential(_nn.Module):
             self,
             optimizer: any,
             loss: any,
-            metrics: List[Metric],
+            metrics: List[MetricImpl],
             device: Union[str, None] = 'cpu'
     ) -> None:
         self.__device = device

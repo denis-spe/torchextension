@@ -9,7 +9,7 @@ from torch import Tensor
 
 
 @dataclass
-class Metric(ABC):
+class MetricImpl(ABC):
     __name = ""
 
     @property
@@ -22,7 +22,7 @@ class Metric(ABC):
         pass
 
 
-class Accuracy(Metric):
+class Accuracy(MetricImpl):
     """
         Compute the model accuracy from yhat (predicted) and y (truth).
 
@@ -77,7 +77,7 @@ class Accuracy(Metric):
         return accuracy_score(numpy_y, numpy_y_hat)
 
 
-class MSE(Metric):
+class MSE(MetricImpl):
     """
         Compute the mean squared error between yhat (predicted) and y (truth).
 
@@ -114,7 +114,7 @@ class MSE(Metric):
         return mean_squared_error(y, y_hat)
 
 
-class MAE(Metric):
+class MAE(MetricImpl):
     """
     Compute the mean absolute error between yhat (predicted) and y (truth).
 
@@ -151,7 +151,7 @@ class MAE(Metric):
         return mean_absolute_error(y, y_hat)
 
 
-class BinaryAccuracy(Metric):
+class BinaryAccuracy(MetricImpl):
     """
         Compute the binary accuracy of yhat (predicted) and y (truth).
 
