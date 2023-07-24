@@ -1,23 +1,27 @@
-#pylint:disable=E1102
+# pylint:disable=E1102
 # === Glory Be To God ====
 
 
 # import libraries
 import sys
-sys.path.append(sys.path[0].replace("tests", ""))
-
-import torch
 import time
+from typing import Callable, Union, List
+from torchextension.history import History
+
 import numpy as np
-from tqdm import tqdm
-from typing import Iterator, Tuple, Dict, Callable, Union
-from torch import nn
+import torch
+from torch import nn as _nn
 from torch.utils.data import DataLoader, Dataset
 from torchinfo import summary
+from tqdm import tqdm
+
 from torchextension.data_converter import DataConverter
+from torchextension.metrics import Metric
+
+sys.path.append(sys.path[0].replace("tests", ""))
 
 
-class Sequential(nn.Module):
+class Sequential(_nn.Module):
     """
     Pass list of torch nn layers.
 
@@ -34,245 +38,244 @@ class Sequential(nn.Module):
     for example:
     --------
     >>> from torch import nn
-    >>> from src.torchSeq.metrics import MAE
-    >>> from src.torchSeq.data_generator import DataGenerator
+    >>> from torchextension.metrics import Accuracy
+    >>> from torchextension.data_converter import DataConverter
+    >>> from sklearn.datasets import make_classification
+    >>>
+    >>> samples = 200
+    >>> classes = 2
+    >>> features = 20
+    >>>
+    >>>
+    >>> # Create binary data from sklearn make classification method
+    >>> binary_X, binary_y = make_classification(
+    ... n_samples=samples,
+    ... n_classes=classes,
+    ... n_features=features
+    ... )
+    >>>
     >>>
     >>> # Create demo data....
-    >>> train_data = DataGenerator(100, 8)
-    >>> test_data = DataGenerator(100, 8, train_sample=False)
+    >>> binary_data = DataConverter(binary_X, binary_y)
+    >>>
+    >>> # Split the data
+    >>> binary_train_data, binary_valid_data  = binary_data.train_test_split()
     >>>
     >>> model = Sequential([
     ... # Input layer
-    ... nn.Linear(in_features=8, out_features=32),
+    ... nn.Linear(in_features=features, out_features=32),
     ... nn.ReLU(),  # Activation function
     ... nn.Dropout(.4),
     ...
     ... # First hidden layer
-    ... nn.Linear(in_features=32, out_features=32),
+    ... nn.Linear(in_features=32, out_features=1),
     ... nn.ReLU(),  # Activation function
     ... nn.Dropout(.4),  # Drop same pixel
     ...
     ... # Output layer
-    ... nn.Linear(in_features=32, out_features=1)
+    ... nn.Sigmoid()
     ... ])
     >>>
     >>> # Compile the model .........
     >>> model.compile(
-    ... optimize=torch.__optimizer.Adam(model.parameters()),
-    ... loss=nn.MSELoss(),
-    ... metrics=MAE(),
+    ... optimizer=torch.optim.Adam(model.parameters()),
+    ... loss=nn.BCELoss(),
+    ... metrics=[Accuracy()],
     ... device=None
     ... )
     >>>
-    >>> train_dataloader = DataLoader(dataset=train_data, shuffle=True)
-    >>> valid_dataloader = DataLoader(dataset=test_data, shuffle=False)
     >>>
     >>> # Fit the data .........
     >>> history = model.fit(
-    ... train_dataloader,
+    ... binary_train_data,
     ... epochs=10,
     ... verbose=False,
-    ... validation_data=valid_dataloader
+    ... validation_data=binary_valid_data
     ... )
     >>> # print(model.predict(test_load))
     """
 
-    def __init__(self, layers: Iterator) -> None:
-        self.metrics_method = None
-        self.model = None
-        self.loss = None
-        self.optim = None
-        self.device = None
-        self.__layers = layers
+    def __init__(self, layers: List) -> None:
         super(Sequential, self).__init__()
-        self.__stacked_layers = nn.Sequential(*self.__layers)
-        self.model_training = True
+        self.logs = None
+        self.__metrics_method = None
+        self.__model = None
+        self.__loss = None
+        self.__optimizer = None
+        self.__device = None
+        self.__layers = layers
+        self.__stacked_layers: _nn.Sequential = _nn.Sequential(*self.__layers)
+        self.__model_training: bool = True
+        self.__history: History = History()
 
     def forward(self, x):
         return self.__stacked_layers(x)
 
-    def compile(self, optimize: any, loss: any, metrics, device: Union[str, None] = 'cpu') -> None:
-        self.device = device
-        self.optim = optimize
-        self.loss = loss
-        self.model: Callable = Sequential(self.__layers).to(self.device)
-        self.metrics_method = metrics
+    def compile(
+            self,
+            optimizer: any,
+            loss: any,
+            metrics: List[Metric],
+            device: Union[str, None] = 'cpu'
+    ) -> None:
+        self.__device = device
+        self.__optimizer = optimizer
+        self.__loss = loss
+        self.__model: Callable = Sequential(self.__layers).to(self.__device)
+        self.__metrics_method = metrics
+        self.__history = History(metrics=metrics)
+        self.logs = self.__history.logs
 
-    def summaries(self, input_size=None):
+    def __summaries(self, input_size=None):
         if input_size:
             return summary(self, input_size=input_size)
         else:
             return summary(self)
 
-    def train_process(
-        self, 
-        X: Union[np.ndarray, Dataset, DataLoader], 
-        y: np.ndarray = None, 
-        metric: Callable = None,  
-        **kwargs) -> Tuple[float, float, float, int]:
+    def __train_process(
+            self,
+            x: Union[np.ndarray, Dataset, DataLoader],
+            y: np.ndarray = None,
+            **kwargs) -> History:
         """
         Train __model on train_data
         """
-        # Indicating the model to training
-        self.model.train()
-        
-        
-       
+
         # Validation of data if it's torch dataset or 
         # DataLoader
-        data_loader  = self.__data_validator(
-                     X=X,
-                     y=y,
-                     **kwargs
-                     )
-        
-        if isinstance(data_loader, DataLoader):
-            # Number of images in  data_loader: size
-            size = len(data_loader.dataset)
-        else:
-            size = len(data_loader)
+        data_loader = self.__data_validator(
+            x=x,
+            y=y,
+            **kwargs
+        )
 
         # Initialize the metric variable
-        total_score, total_loss, count_label, current = 0, 0, 0, 0
+        loss_list, y_list, y_hat_list = [], [], []
 
-        start = time.time()
- 
-        
         # iterate over the data_loader
         for batch, (x, y) in enumerate(data_loader):
-            
+
             # Switch to device
-            x, y = x.to(self.device), y.to(self.device)
-            
-            if self.model is None:
+            x, y = x.to(self.__device), y.to(self.__device)
+
+            if self.__model is None:
                 raise TypeError('Compile the model before fitting it with `model.compile`')
             else:
                 # Make prediction
-                yhat = self.model(x)
-            
+                yhat = self.__model(x)
 
             # *** Backpropagation Process ***
 
             # Compute error by measure the degree of dissimilarity
             # from obtained result in target
-            criterion = self.loss(yhat, y)
+            criterion = self.__loss(yhat, y)
 
             # Reset the gradient of the model parameters
             # Gradients by default add up; to prevent double-counting,
             # we explicitly zero them at each iteration.
-            self.optim.zero_grad()
+            self.__optimizer.zero_grad()
 
             # Back propagate the prediction loss to deposit the gradient of loss
             # for learnable parameters
             criterion.backward()
 
             # Adjust the parameters by gradient collected in the backward pass
-            self.optim.step()
+            self.__optimizer.step()
 
-            # Count number of labels
-            count_label += len(y)
+            # Append y, y_hat and loss to list
+            y_list.append(y.item())
+            y_hat_list.append(yhat.item())
+            loss_list.append(criterion.item())
 
-            # sum each loss to total_loss variable
-            total_loss += criterion.item()
+        # Add new loss, y_hat and y on
+        self.__history.add_loss_pred_and_y(
+            torch.tensor(loss_list),
+            torch.tensor(y_hat_list),
+            torch.tensor(y_list)
+        )
 
-            # _, predict = torch.max(yhat, 1)
+        # Handle metrics
+        self.__history.metrics_handler()
 
-            # Add every accuracy on total_acc
-            # total_score += (predict == y).sum().item()
-            if metric:
-                total_score += metric(yhat, y)
+        return self.__history
 
-            if batch % 100 == 0:
-                current += (batch / size)
-
-        stop = time.time()
-        time_taken = round(stop - start, 3)
-
-        return (total_loss / count_label,
-                total_score / count_label, time_taken,
-                int(round(current * 100))
-                )
-
-    def evaluate(self, X, y=None, **kwargs) -> Tuple[float, float]:
+    def __evaluate(self, x, y=None, **kwargs) -> History:
         """
         Evaluation  model with validation data
         """
-        
+
         # Directing model to evaluation process
-        self.model.eval()
-        
+        self.__model.eval()
+
         # Validation of data if it's torch dataset or 
         # DataLoader
-        data_loader  = self.__data_validator(
-                     X=X,
-                     y=y,
-                     **kwargs
-                     )
+        data_loader = self.__data_validator(
+            x=x,
+            y=y,
+            **kwargs
+        )
 
-        # Instantiate metric variables
-        total_loss, total_score, count_labels = 0, 0, 0
+        # Initialize the metric variable
+        loss_list, y_list, y_hat_list = [], [], []
 
         # Disabling gradient calculation
         with torch.no_grad():
-            
-            for X, y in data_loader.dataset:
-                
+            for x, y in data_loader:
                 # Set to device
-                X, y = X.to(self.device), y.to(self.device)
+                x, y = x.to(self.__device), y.to(self.__device)
 
                 # Make prediction
-                predictions = self.model(X)
+                predictions = self.__model(x)
 
                 # Compute the loss(error)
-                criterion = self.loss(predictions, y)
+                criterion = self.__loss(predictions, y)
 
-                # Add number of label to count_labels
-                count_labels += len(y)
+                # Add loss, y and predictions to empty lists
+                loss_list.append(criterion.item())
+                y_list.append(y)
+                y_hat_list.append(predictions)
 
-                # Add criterion loss to total_loss
-                total_loss += criterion.item()
-                
-                # Calculate the metrics
-                if self.metrics_method is not None:
-                    total_score  += self.metrics_method(predictions, y)
+                # Add new loss, y_hat and y on
+                self.__history.add_loss_pred_and_y(
+                    torch.tensor(loss_list),
+                    torch.tensor(y_hat_list),
+                    torch.tensor(y_list),
+                    train=False
+                )
 
-            # Finally, return total_loss and total_acc which each is divided by
-            # count_labels
-            return total_loss / count_labels, total_score
-            
+                # Handle metrics
+                self.__history.metrics_handler(train=False)
+                return self.__history
+
+    @staticmethod
     def __data_validator(
-    self, 
-    X, 
-    y=None, 
-    **kwargs):
-       if y is not None:
-            # Convert to torch Dataset 
-            data_loader = DataConverter(X, y)
-       else:
-            # It's  in torch Dataset
-            data_loader = X
-        
-        # Check if data_loader is instance of DataLoader   
-       if not isinstance(data_loader, DataLoader):
-           data_loader = DataLoader(data_loader, **kwargs)
-           try:
-               data_loader = data_loader.dataset.dataset
-           except AttributeError:
-               data_loader = data_loader.dataset
-               
-       return data_loader
+            x,
+            y=None,
+            **kwargs):
+        if y is not None:
+            # Convert to torch Dataset
+            dataset = DataConverter(x, y)
+            dataset = DataLoader(dataset).dataset
+            return dataset
+        else:
+            try:
+                # It's  in torch Dataset
+                dataset = x.dataset
+            except AttributeError:
+                dataset = DataLoader(x).dataset
+            return dataset
 
     def fit(
             self,
-            X: any,
-            y: any=None,
+            x: any,
+            y: any = None,
             epochs: int = 1,
-            validation_data: DataLoader = None,
+            validation_data: any = None,
             verbose: bool = True,
             callbacks: list = None,
             seed: int = 0,
             **kwargs
-    ):
+    ) -> History:
         """
         The Fit method make use of train_sample data and
         validation data if provided
@@ -284,16 +287,11 @@ class Sequential(nn.Module):
         :param verbose: (bool) Sequential training progress.
         :param validation_data: (DataLoader) Data to validate the model.
         :param epochs: (int) number of training iteration.
-        :param train_data: (DataLoader) Data to train_sample the model.
+        :param x: (DataLoader) x data to train the model.
+        :param y: (DataLoader) y data to train the model.
 
         :return: model's history.
         """
-        # Initializing variable for storing metric score
-        metrics = {}
-        score_list = []
-        loss_list = []
-        valid_acc_list = []
-        valid_loss_list = []
 
         # Set the reproducibility.
         torch.manual_seed(seed)
@@ -302,55 +300,51 @@ class Sequential(nn.Module):
         for epoch in range(epochs):
             if verbose:
                 print(f"\033[1m\nEpoch {epoch + 1}/{epochs}\033[0m")
-                for _ in tqdm(range(100), ascii="•\\", bar_format='{l_bar}{bar:30}|'):
+                for _ in tqdm(range(100), ascii="•\\", bar_format='{l_bar}{bar:30}|', postfix=" "):
                     time.sleep(0.1)
 
-            # Train the data                
-            train = self.train_process(X, y, metric=self.metrics_method, **kwargs)
-
-            # Instantiate train_sample loss and accuracy
-            train_loss = round(train[0], 6)
-            train_score = round(train[1], 5)
+            # Train the data return loss,
+            train_metric = self.__train_process(x, y, **kwargs)
 
             if verbose:
-                print(
-                    f" loss: {train_loss} - {self.metrics_method.name}: {train_score} - \
-ETA: {round(train[2] * 100, 2)}ms",
-                    end="")
-
-            # Storing the __model score
-            score_list.append(train_score)
-            loss_list.append(train_loss)
+                # Train logs
+                train_logs = train_metric.logs.items()
+                # Loop over the train logs
+                for idx, (key, value) in enumerate(train_logs):
+                    if not key.startswith("val"):
+                        print("%s : %.4f" % (key, value[-1]), end="")
+                        if idx != len(train_logs) - 1:
+                            print(" - ", end="")
 
             if validation_data:
-                valid = self.evaluate(validation_data)
-                # Instantiate train_sample loss and accuracy
-                valid_loss = round(valid[0], 6)
-                valid_acc = round(valid[1], 4)
+                valid_metrics = self.__evaluate(validation_data)
+
+                if epoch == 0:
+                    print(" - ", end="")
 
                 if verbose:
-                    print(f"- val_loss: {valid_loss} - val_{self.metrics_method.name}: {valid_acc}")
+                    # Train logs
+                    valid_logs = valid_metrics.logs.items()
 
-                # Store the score
-                valid_loss_list.append(valid_loss)
-                valid_acc_list.append(valid_acc)
+                    # Loop over the train logs
+                    for idx, (key, value) in enumerate(valid_logs):
+                        if key.startswith("val"):
+                            print("%s : %.4f" % (key, value[-1]), end="")
+                            if idx != len(valid_logs) - 1:
+                                print(" - ", end="")
 
-            if not self.model_training:
+            if epoch == epochs - 1:
+                print(end="\n")
+
+            if not self.__model_training:
                 # Break the training loop if model_training is false
                 break
 
             if callbacks:
                 for callback in callbacks:
-                    callback(self, metrics)
+                    callback(self, self.logs)
 
-        metrics[self.metrics_method.name] = score_list
-        metrics["loss"] = loss_list
-
-        if validation_data:
-            metrics["val_" + self.metrics_method.name] = valid_acc_list
-            metrics["val_loss"] = valid_loss_list
-
-        return metrics
+        return self.__history
 
     def predict(self, y: torch.tensor) -> torch.tensor:
         # list storage for predictions
@@ -367,17 +361,17 @@ ETA: {round(train[2] * 100, 2)}ms",
             # Loop over the values in y
             for val in data:
                 # switch to device
-                val = val.to(self.device)
-                if self.metrics_method.name in ['mae', 'mse']:
+                val = val.to(self.__device)
+                if self.__metrics_method.name in ['mae', 'mse']:
                     # Make prediction
-                    predict = self.model(val)
+                    predict = self.__model(val)
 
                     # Append the predictions to the list
                     predictions.append(predict.item())
 
                 else:
                     # Make prediction
-                    probability = self.model(val)
+                    probability = self.__model(val)
 
                     # probability variable returns probability
                     # Therefor convert it to actual value
@@ -387,4 +381,4 @@ ETA: {round(train[2] * 100, 2)}ms",
                     predictions.append(prediction)
         return predictions
 
-#                                   Glory Be to God
+#                                   Glory Be to Lord

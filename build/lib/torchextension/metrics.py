@@ -1,10 +1,25 @@
 # === Glory Be To God ====
 
-# import the necessary library
-import torch
-from torchextension.metrics import Metric
+# Import libraries
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Union
 from torch import Tensor
+
+
+@dataclass
+class Metric(ABC):
+    __name = ""
+
+    @property
+    @abstractmethod
+    def name(self):
+        pass
+
+    @abstractmethod
+    def __call__(self, y: Tensor, yhat: Tensor):
+        pass
 
 
 class Accuracy(Metric):
@@ -22,28 +37,44 @@ class Accuracy(Metric):
 
         example
         _______
-
+        >>> import torch
+        >>>
         >>> # predicted values and true values
-        >>> yhat = torch.tensor([[-0.221]])
-        >>> y = torch.tensor([[0.05]])
+        >>> y_hat = torch.tensor([[0]])
+        >>> y = torch.tensor([[1]])
         >>>
         >>> # Initialize the mean absolute error class.
         >>> accuracy = Accuracy()
         >>>
         >>> # Get the error.
-        >>> assert accuracy(yhat, y) == 0
+        >>> assert accuracy(y_hat, y) == 0.0
         >>>
-        >>> yhat = torch.tensor([[1], [1], [1], [1]])
+        >>> y_hat = torch.tensor([[1], [1], [1], [1]])
         >>> y = torch.tensor([[1], [0], [1], [0]])
         >>>
-        >>> # print(accuracy(yhat, y))
-        >>> # 8
+        >>> assert accuracy(y_hat, y) == 0.5
+        >>>
     """
-    name = "accuracy"
 
-    def __call__(self, yhat: Tensor, y: Tensor) -> Union[int, float]:
-        _, predict = torch.max(yhat, 1)
-        return (predict == y).sum().item()
+    @property
+    def name(self):
+        return "accuracy"
+
+    def __call__(self, y_hat: Tensor, y: Tensor) -> Union[int, float]:
+        import torch
+        from sklearn.metrics import accuracy_score
+
+        try:
+            _, predict = torch.max(y_hat, 1)
+        except IndexError:
+
+            predict = y_hat
+
+        # Convert from tensor to numpy array
+        numpy_y_hat = y_hat.numpy()
+        numpy_y = y.numpy()
+
+        return accuracy_score(numpy_y, numpy_y_hat)
 
 
 class MSE(Metric):
@@ -61,22 +92,26 @@ class MSE(Metric):
 
         example
         _______
-
+        >>> import torch
+        >>>
         >>> # predicted values and true values
-        >>> yhat = torch.tensor([2.31, 1.432, 3.423, 24.2])
+        >>> y_hat = torch.tensor([2.31, 1.432, 3.423, 24.2])
         >>> y = torch.tensor([2.43, 1.345, 2.98, 23.4])
         >>>
         >>> # Initialize the mean absolute error class.
         >>> mse = MSE()
         >>>
         >>> # Get the error.
-        >>> # print(mse(yhat, y))
-        >>> # 0.02287660539150238
+        >>> assert  mse(y_hat, y) == 0.02287660539150238
     """
-    name = "mse"
 
-    def __call__(self, yhat: Tensor, y: Tensor) -> Union[int, float]:
-        return (torch.mean(yhat - y) ** 2 / len(y)).item()
+    @property
+    def name(self):
+        return "mse"
+
+    def __call__(self, y_hat: Tensor, y: Tensor) -> Union[int, float]:
+        from sklearn.metrics import mean_squared_error
+        return mean_squared_error(y, y_hat)
 
 
 class MAE(Metric):
@@ -94,19 +129,77 @@ class MAE(Metric):
 
     example
     _______
-
+    >>> import torch
+    >>>
     >>> # predicted values and true values
-    >>> yhat = torch.tensor([2.31, 1.432, 3.423, 24.2])
+    >>> y_hat = torch.tensor([2.31, 1.432, 3.423, 24.2])
     >>> y = torch.tensor([2.43, 1.345, 2.98, 23.4])
     >>>
     >>> # Initialize the mean absolute error class.
     >>> mae = MAE()
     >>>
     >>> # Get the error.
-    >>> # print(mae(yhat, y))
-    >>> # 0.3625003397464752
+    >>> assert mae(y_hat, y) == 0.3625003397464752
     """
-    name = "mae"
 
-    def __call__(self, yhat: Tensor, y: Tensor) -> Union[int, float]:
-        return torch.mean(torch.abs(yhat - y)).item()
+    @property
+    def name(self):
+        return "mae"
+
+    def __call__(self, y_hat: Tensor, y: Tensor) -> Union[int, float]:
+        import torch
+        from sklearn.metrics import mean_absolute_error
+        return mean_absolute_error(y, y_hat)
+
+
+class BinaryAccuracy(Metric):
+    """
+        Compute the binary accuracy of yhat (predicted) and y (truth).
+
+        parameter:
+        ------------
+        yhat: predicted values in torch tensor.
+        y: true value in torch tensor.
+
+        return:
+        -------
+        binary accuracy
+
+        example
+        _______
+        >>> import torch
+        >>>
+        >>> # predicted values and true values
+        >>> y_hat = torch.tensor([[0.4]])
+        >>> y = torch.tensor([[1]])
+        >>>
+        >>> # Initialize the mean absolute error class.
+        >>> binary_acc = BinaryAccuracy()
+        >>>
+        >>> # Get the error.
+        >>> assert binary_acc(y_hat, y) == 0
+        >>>
+        >>>
+        >>> y_hat = torch.tensor([[0.4]])
+        >>> y = torch.tensor([[1]])
+        >>>
+        >>>
+        >>> # Get the error.
+        >>> assert binary_acc(y_hat, y) == 0
+        """
+
+    @property
+    def name(self):
+        return "binary_accuracy"
+
+    def __call__(self, y_hat: Tensor, y: Tensor, threshold: float = 0.5) -> Union[int, float]:
+        import torch
+        predictions = torch.tensor([
+            1 if value > threshold else 0
+            for value in y_hat.view(-1, 1)
+        ]).view(-1, 1)
+
+        # Instantiate the Accuracy
+        accuracy = Accuracy()
+
+        return accuracy(predictions, y.view(-1, 1))

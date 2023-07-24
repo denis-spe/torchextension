@@ -71,7 +71,7 @@ class Accuracy(Metric):
             predict = y_hat
 
         # Convert from tensor to numpy array
-        numpy_y_hat = y_hat.numpy()
+        numpy_y_hat = predict.numpy()
         numpy_y = y.numpy()
 
         return accuracy_score(numpy_y, numpy_y_hat)
@@ -147,7 +147,6 @@ class MAE(Metric):
         return "mae"
 
     def __call__(self, y_hat: Tensor, y: Tensor) -> Union[int, float]:
-        import torch
         from sklearn.metrics import mean_absolute_error
         return mean_absolute_error(y, y_hat)
 
