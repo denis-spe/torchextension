@@ -201,4 +201,4 @@ class BinaryAccuracy(MetricImpl):
         # Instantiate the Accuracy
         accuracy = Accuracy()
 
-        return accuracy(predictions, y.view(-1, 1))
+        return accuracy(y.view(-1, 1), predictions)

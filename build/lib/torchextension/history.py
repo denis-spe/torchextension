@@ -21,6 +21,9 @@ class History:
                 self.__logs[metric.name] = []
                 self.__logs["val_" + metric.name] = []
 
+    def __repr__(self):
+        return str(History)
+
     @property
     def logs(self) -> Dict[str, List]:
         return {
@@ -83,4 +86,11 @@ class History:
                 for metric in self.metrics
             })
 
-        return hist
+        # Remove empty metrics
+        new_hist = {
+            key: value
+            for key, value in hist.items()
+            if len(value) > 0
+        }
+
+        return new_hist

@@ -122,6 +122,8 @@ class Sequential(_nn.Module):
         self.__optimizer = optimizer
         self.__loss = loss
         self.__model: Callable = Sequential(self.__layers).to(self.__device)
+        if type(metrics).__name__ != "list":
+            raise TypeError("metrics parameter must be list of metrics")
         self.__metrics_method = metrics
         self.__history = History(metrics=metrics)
         self.logs = self.__history.logs
@@ -343,8 +345,8 @@ class Sequential(_nn.Module):
             if callbacks:
                 for callback in callbacks:
                     callback(self, self.logs)
-
-        return self.__history
+        history = self.__history
+        return history
 
     def predict(self, y: torch.tensor) -> torch.tensor:
         # list storage for predictions

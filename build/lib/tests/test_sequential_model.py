@@ -146,17 +146,17 @@ class TestSequential(unittest.TestCase):
                     in_features=self.cls_n_features,
                     out_features=512
                 ),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(
                     in_features=512,
                     out_features=1024
                 ),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(
                     in_features=1024,
                     out_features=252
                 ),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(
                     in_features=252,
                     out_features=1
@@ -173,8 +173,8 @@ class TestSequential(unittest.TestCase):
         )
 
         # Fit the model.
-        history1 = model.fit(cls_train_data, epochs=10)
-        # history2 = model.fit(x, y, epochs=3)
+        # model.fit(cls_train_data, epochs=1)
+        model.fit(x, y, epochs=2)
 
     # def test_binary_model(self):
     #     # Instantiate X and y
