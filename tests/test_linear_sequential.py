@@ -38,9 +38,14 @@ class TestSequential(unittest.TestCase):
             metrics=[MSE(), MAE()]
         )
 
+        self.model.fit(
+            self.dataset,
+            validation_split=0.25,
+            epochs=3)
+
         history = self.model.fit(
             self.dataset,
-            validation_data=self.dataset,
+            validation_data=[self.dataset],
             epochs=3)
 
         self.assertEqual(type(history.history).__name__, "dict")

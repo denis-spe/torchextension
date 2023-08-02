@@ -146,19 +146,8 @@ class TestSequential(unittest.TestCase):
                     in_features=self.cls_n_features,
                     out_features=512
                 ),
-                nn.ReLU(),
                 nn.Linear(
                     in_features=512,
-                    out_features=1024
-                ),
-                nn.ReLU(),
-                nn.Linear(
-                    in_features=1024,
-                    out_features=252
-                ),
-                nn.ReLU(),
-                nn.Linear(
-                    in_features=252,
                     out_features=1
                 ),
                 nn.Sigmoid()
@@ -174,7 +163,7 @@ class TestSequential(unittest.TestCase):
 
         # Fit the model.
         # model.fit(cls_train_data, epochs=1)
-        model.fit(x, y, epochs=2)
+        model.fit(x, y, epochs=2, validation_split=0.25)
 
     # def test_binary_model(self):
     #     # Instantiate X and y

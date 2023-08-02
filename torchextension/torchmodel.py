@@ -136,9 +136,9 @@ class Sequential(_nn.Module):
 
     def __train_process(
             self,
-            x: Union[np.ndarray, Dataset, DataLoader],
+            x: Union[np.ndarray, DataLoader, DataConverter],
             y: np.ndarray = None,
-            **kwargs) -> History:
+         ) -> History:
         """
         Train __model on train_data
         """
@@ -148,7 +148,6 @@ class Sequential(_nn.Module):
         data_loader = self.__data_validator(
             x=x,
             y=y,
-            **kwargs
         )
 
         # Initialize the metric variable
@@ -201,7 +200,10 @@ class Sequential(_nn.Module):
 
         return self.__history
 
-    def __evaluate(self, x, y=None, **kwargs) -> History:
+    def evaluate(
+            self,
+            x: Union[np.ndarray, DataLoader, DataConverter],
+            y: np.ndarray = None) -> History:
         """
         Evaluation  model with validation data
         """
@@ -214,7 +216,6 @@ class Sequential(_nn.Module):
         data_loader = self.__data_validator(
             x=x,
             y=y,
-            **kwargs
         )
 
         # Initialize the metric variable
@@ -252,8 +253,8 @@ class Sequential(_nn.Module):
     @staticmethod
     def __data_validator(
             x,
-            y=None,
-            **kwargs):
+            y=None
+    ):
         if y is not None:
             # Convert to torch Dataset
             dataset = DataConverter(x, y)
@@ -272,7 +273,8 @@ class Sequential(_nn.Module):
             x: any,
             y: any = None,
             epochs: int = 1,
-            validation_data: any = None,
+            validation_data: List[Union[np.ndarray, DataLoader, DataConverter]] = None,
+            validation_split: float = None,
             verbose: bool = True,
             callbacks: list = None,
             seed: int = 0,
@@ -288,6 +290,7 @@ class Sequential(_nn.Module):
         :param callbacks: (List) Pass a callback in list or None.
         :param verbose: (bool) Sequential training progress.
         :param validation_data: (DataLoader) Data to validate the model.
+        :param validation_split: (float) Split data into train and validation data.
         :param epochs: (int) number of training iteration.
         :param x: (DataLoader) x data to train the model.
         :param y: (DataLoader) y data to train the model.
@@ -298,15 +301,39 @@ class Sequential(_nn.Module):
         # Set the reproducibility.
         torch.manual_seed(seed)
 
+        # Variable place holder
+        train_dataloader, valid_data = [None, None]
+
+        if validation_split and not validation_data:
+            from torchextension.data_converter import DataConverter
+
+            # Split into train and validation data
+            if y is not None:
+                train_dataloader, valid_data = (DataConverter(x, y)
+                                                .train_test_split(
+                    train_size=1 - validation_split,
+                    test_size=validation_split
+                ))
+            else:
+                # it's a dataloader
+                train_dataloader, valid_data = (DataConverter(x)
+                                                .train_test_split(
+                    train_size=1 - validation_split,
+                    test_size=validation_split
+                ))
+
         # loop through the epoch
         for epoch in range(epochs):
             if verbose:
                 print(f"\033[1m\nEpoch {epoch + 1}/{epochs}\033[0m")
                 for _ in tqdm(range(100), ascii="•\\", bar_format='{l_bar}{bar:30}|', postfix=" "):
                     time.sleep(0.1)
-
-            # Train the data return loss,
-            train_metric = self.__train_process(x, y, **kwargs)
+            if validation_split:
+                # Train the data return loss,
+                train_metric = self.__train_process(train_dataloader, **kwargs)
+            else:
+                # Train the data return loss,
+                train_metric = self.__train_process(x, y)
 
             if verbose:
                 # Train logs
@@ -318,8 +345,28 @@ class Sequential(_nn.Module):
                         if idx != len(train_logs) - 1:
                             print(" - ", end="")
 
-            if validation_data:
-                valid_metrics = self.__evaluate(validation_data)
+            if validation_data is not None:
+                if len(validation_data) > 1:
+                    valid_metrics = self.evaluate(validation_data[0], validation_data[1])
+                else:
+                    valid_metrics = self.evaluate(validation_data[0])
+
+                if epoch == 0:
+                    print(" - ", end="")
+
+                if verbose:
+                    # Train logs
+                    valid_logs = valid_metrics.logs.items()
+
+                    # Loop over the train logs
+                    for idx, (key, value) in enumerate(valid_logs):
+                        if key.startswith("val"):
+                            print("%s : %.4f" % (key, value[-1]), end="")
+                            if idx != len(valid_logs) - 1:
+                                print(" - ", end="")
+
+            if validation_split and not validation_data:
+                valid_metrics = self.evaluate(valid_data)
 
                 if epoch == 0:
                     print(" - ", end="")

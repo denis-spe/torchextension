@@ -69,6 +69,13 @@ class TestDataConverter(unittest.TestCase):
         # Check for how many samples are return
         self.assertEqual(length, 2)
 
+    def test_single_test_train_split(self):
+        # Instantiate the DataConverter instance
+        data = DataConverter(self.data_converter_class).train_test_split()
+
+        self.assertEqual(type(data[0].dataset[0]).__name__, "tuple")
+        self.assertEqual(len(data[0].dataset[0]), 2)
+
 
 if __name__ == '__main__':
     unittest.main()
