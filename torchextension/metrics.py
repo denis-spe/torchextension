@@ -63,18 +63,8 @@ class Accuracy(MetricImpl):
     def __call__(self, y_hat: Tensor, y: Tensor) -> Union[int, float]:
         import torch
         from sklearn.metrics import accuracy_score
-
-        try:
-            _, predict = torch.max(y_hat, 1)
-        except IndexError:
-
-            predict = y_hat
-
-        # Convert from tensor to numpy array
-        numpy_y_hat = predict.numpy()
-        numpy_y = y.numpy()
-
-        return accuracy_score(numpy_y, numpy_y_hat)
+        # print(y_hat.numpy().reshape(-1, 1))
+        return accuracy_score(y_hat.numpy().reshape(-1, 1), y.numpy().reshape(-1, 1))
 
 
 class MSE(MetricImpl):

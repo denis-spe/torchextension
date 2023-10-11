@@ -21,8 +21,8 @@ class DataConverter(_Dataset):
         """
         self.X = x
         self.y = y
-        if y is not None:
-            self.y = y.reshape(-1, 1)
+        # if y is not None:
+        #     self.y = y.reshape(-1, 1)
         self.transform = transform
         self.target_transform = target_transform
 
@@ -32,11 +32,11 @@ class DataConverter(_Dataset):
     def __getitem__(self, idx: int):
         import torch
 
-        x = torch.FloatTensor(self.X[idx, :])
+        x = torch.tensor(self.X[idx, :])
+        y = torch.tensor(self.y)[idx]
+
         if self.transform:
             x = self.transform(x)
-
-        y = torch.FloatTensor(self.y)[idx]
         if self.target_transform:
             y = self.target_transform(y)
         return x, y

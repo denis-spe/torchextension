@@ -9,7 +9,7 @@ from torch import nn
 
 sys.path.append(sys.path[0].replace("tests", ""))
 from torchextension.torchmodel import Sequential
-from torchextension.metrics import BinaryAccuracy
+from torchextension.metrics import BinaryAccuracy, Accuracy
 from torchextension.data_converter import DataConverter
 
 
@@ -146,19 +146,20 @@ class TestSequential(unittest.TestCase):
                     in_features=self.cls_n_features,
                     out_features=512
                 ),
+                nn.ReLU(),
                 nn.Linear(
                     in_features=512,
-                    out_features=1
+                    out_features=3
                 ),
-                nn.Sigmoid()
+                nn.Softmax(dim=0)
             ]
         )
 
         # Compile the model
         model.compile(
-            optimizer=torch.optim.SGD(model.parameters(), lr=0.001),
-            loss=nn.BCELoss(),
-            metrics=[BinaryAccuracy()]
+            optimizer=torch.optim.Adam(model.parameters()),
+            loss=nn.CrossEntropyLoss(),
+            metrics=[Accuracy()]
         )
 
         # Fit the model.

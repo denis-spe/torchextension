@@ -121,7 +121,7 @@ class Sequential(_nn.Module):
         self.__device = device
         self.__optimizer = optimizer
         self.__loss = loss
-        self.__model: Callable = Sequential(self.__layers).to(self.__device)
+        self.__model: Callable = Sequential(self.__layers).to(self.__device).float()
         if type(metrics).__name__ != "list":
             raise TypeError("metrics parameter must be list of metrics")
         self.__metrics_method = metrics
@@ -163,7 +163,7 @@ class Sequential(_nn.Module):
                 raise TypeError('Compile the model before fitting it with `model.compile`')
             else:
                 # Make prediction
-                yhat = self.__model(x)
+                yhat = self.__model(x.float())
 
             # *** Backpropagation Process ***
 
@@ -185,7 +185,10 @@ class Sequential(_nn.Module):
 
             # Append y, y_hat and loss to list
             y_list.append(y.item())
-            y_hat_list.append(yhat.item())
+            try:
+                y_hat_list.append(yhat.item())
+            except RuntimeError:
+                y_hat_list.append(yhat.argmax().item())
             loss_list.append(criterion.item())
 
         # Add new loss, y_hat and y on
@@ -228,7 +231,7 @@ class Sequential(_nn.Module):
                 x, y = x.to(self.__device), y.to(self.__device)
 
                 # Make prediction
-                predictions = self.__model(x)
+                predictions = self.__model(x.float())
 
                 # Compute the loss(error)
                 criterion = self.__loss(predictions, y)
@@ -236,19 +239,22 @@ class Sequential(_nn.Module):
                 # Add loss, y and predictions to empty lists
                 loss_list.append(criterion.item())
                 y_list.append(y)
-                y_hat_list.append(predictions)
+                if len(predictions) > 1:
+                    y_hat_list.append(predictions.argmax())
+                else:
+                    y_hat_list.append(predictions)
 
-                # Add new loss, y_hat and y on
-                self.__history.add_loss_pred_and_y(
-                    torch.tensor(loss_list),
-                    torch.tensor(y_hat_list),
-                    torch.tensor(y_list),
-                    train=False
-                )
+        # Add new loss, y_hat and y on
+        self.__history.add_loss_pred_and_y(
+            torch.tensor(loss_list),
+            torch.tensor(y_hat_list),
+            torch.tensor(y_list),
+            train=False
+        )
 
-                # Handle metrics
-                self.__history.metrics_handler(train=False)
-                return self.__history
+        # Handle metrics
+        self.__history.metrics_handler(train=False)
+        return self.__history
 
     @staticmethod
     def __data_validator(
