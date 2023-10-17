@@ -163,8 +163,28 @@ class TestSequential(unittest.TestCase):
         )
 
         # Fit the model.
-        # model.fit(cls_train_data, epochs=1)
-        model.fit(x, y, epochs=2, validation_split=0.25)
+        # model.fit(
+        #     cls_dataset,
+        #     epochs=1,
+        #     # validation_split=0.25
+        # )
+
+        history = model.fit(
+            cls_train_data,
+            validation_data=[cls_valid_data],
+            epochs=2
+        )
+
+        # print(model.optimizer.state_dict())
+
+        print(history.history)
+
+        # model.fit(
+        #     x,
+        #     y,
+        #     epochs=1,
+        #     validation_split=0.25
+        # )
 
     # def test_binary_model(self):
     #     # Instantiate X and y

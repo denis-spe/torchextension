@@ -258,7 +258,7 @@ class Tuner(object):
 
                 # Print the optim summary
                 try:
-                    print(f"\n| \033[1m{key}\033[0m - {model.__optimizer.param_groups[0][key]}")
+                    print(f"\n| \033[1m{key}\033[0m - {model.optimizer.param_groups[0][key]}")
                 except KeyError:
                     pass
                 hyperparameter.selector(key)

@@ -9,7 +9,7 @@ class MyTestCase(unittest.TestCase):
     def setUp(self) -> None:
         # Instantiate History instance
         self.history = History(metrics=[MAE(), MSE()])
-        self.history.add_loss_pred_and_y(
+        self.history.add_loss_predict_and_y(
             torch.tensor([[2.134, 0.23]]),
             y_hat=torch.tensor([[2.134], [32.12]]),
             y=torch.tensor([[2.134], [15.21]])

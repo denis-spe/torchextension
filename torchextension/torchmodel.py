@@ -101,7 +101,7 @@ class Sequential(_nn.Module):
         self.__metrics_method = None
         self.__model = None
         self.__loss = None
-        self.__optimizer = None
+        self.optimizer = None
         self.__device = None
         self.__layers = layers
         self.__stacked_layers: _nn.Sequential = _nn.Sequential(*self.__layers)
@@ -119,9 +119,9 @@ class Sequential(_nn.Module):
             device: Union[str, None] = 'cpu'
     ) -> None:
         self.__device = device
-        self.__optimizer = optimizer
+        self.optimizer = optimizer
         self.__loss = loss
-        self.__model: Callable = Sequential(self.__layers).to(self.__device).float()
+        self.__model: Sequential = Sequential(self.__layers).to(self.__device).float()
         if type(metrics).__name__ != "list":
             raise TypeError("metrics parameter must be list of metrics")
         self.__metrics_method = metrics
@@ -174,14 +174,14 @@ class Sequential(_nn.Module):
             # Reset the gradient of the model parameters
             # Gradients by default add up; to prevent double-counting,
             # we explicitly zero them at each iteration.
-            self.__optimizer.zero_grad()
+            self.optimizer.zero_grad()
 
             # Back propagate the prediction loss to deposit the gradient of loss
             # for learnable parameters
             criterion.backward()
 
             # Adjust the parameters by gradient collected in the backward pass
-            self.__optimizer.step()
+            self.optimizer.step()
 
             # Append y, y_hat and loss to list
             y_list.append(y.item())
@@ -192,7 +192,7 @@ class Sequential(_nn.Module):
             loss_list.append(criterion.item())
 
         # Add new loss, y_hat and y on
-        self.__history.add_loss_pred_and_y(
+        self.__history.add_loss_predict_and_y(
             torch.tensor(loss_list),
             torch.tensor(y_hat_list),
             torch.tensor(y_list)
@@ -245,7 +245,7 @@ class Sequential(_nn.Module):
                     y_hat_list.append(predictions)
 
         # Add new loss, y_hat and y on
-        self.__history.add_loss_pred_and_y(
+        self.__history.add_loss_predict_and_y(
             torch.tensor(loss_list),
             torch.tensor(y_hat_list),
             torch.tensor(y_list),
@@ -303,9 +303,12 @@ class Sequential(_nn.Module):
 
         :return: model's history.
         """
-
         # Set the reproducibility.
         torch.manual_seed(seed)
+
+        # Empty the logs
+        self.__history.clear_logs()
+        self.optimizer.state_dict = {}
 
         # Variable place holder
         train_dataloader, valid_data = [None, None]

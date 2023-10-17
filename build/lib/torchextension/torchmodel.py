@@ -190,7 +190,7 @@ class Sequential(_nn.Module):
             loss_list.append(criterion.item())
 
         # Add new loss, y_hat and y on
-        self.__history.add_loss_pred_and_y(
+        self.__history.add_loss_predict_and_y(
             torch.tensor(loss_list),
             torch.tensor(y_hat_list),
             torch.tensor(y_list)
@@ -238,7 +238,7 @@ class Sequential(_nn.Module):
                 y_hat_list.append(predictions)
 
                 # Add new loss, y_hat and y on
-                self.__history.add_loss_pred_and_y(
+                self.__history.add_loss_predict_and_y(
                     torch.tensor(loss_list),
                     torch.tensor(y_hat_list),
                     torch.tensor(y_list),

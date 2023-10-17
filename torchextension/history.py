@@ -24,6 +24,9 @@ class History:
     def __repr__(self):
         return str(History)
 
+    def clear_logs(self):
+        self.__logs = {key: [] for key, value in self.__logs.items()}
+
     @property
     def logs(self) -> Dict[str, List]:
         return {
@@ -32,7 +35,7 @@ class History:
             if len(value) != 0
         }
 
-    def add_loss_pred_and_y(self, loss, y_hat, y, train=True):
+    def add_loss_predict_and_y(self, loss, y_hat, y, train=True):
         if train:
             self.__loss = loss
             self.__y_hat = y_hat
