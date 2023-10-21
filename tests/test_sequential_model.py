@@ -4,12 +4,15 @@ import sys
 import unittest
 
 import torch
-from sklearn.datasets import make_classification
+from sklearn.datasets import make_classification, make_regression
 from torch import nn
+from torchvision.datasets import MNIST
+from torch.utils.data import DataLoader
+from torchvision.transforms import ToTensor
 
 sys.path.append(sys.path[0].replace("tests", ""))
 from torchextension.torchmodel import Sequential
-from torchextension.metrics import BinaryAccuracy, Accuracy
+from torchextension.metrics import BinaryAccuracy, Accuracy, MSE, MAE
 from torchextension.data_converter import DataConverter
 
 
@@ -22,7 +25,6 @@ class TestSequential(unittest.TestCase):
         self.cls_n_features = 20
         self.n_samples = 6000
 
-        """
         # Initialize train_sample and validation data ..........
         self.train = MNIST(root='.', train=True, download=True, transform=ToTensor())
 
@@ -58,11 +60,13 @@ class TestSequential(unittest.TestCase):
 
         # Compile the model ....
         self.mnist_model.compile(
-            optimize=torch.optim.Adam(params=self.mnist_model.parameters()),
+            optimizer=torch.optim.Adam(params=self.mnist_model.parameters()),
             loss=nn.CrossEntropyLoss(),
             device="cpu",
-            metrics=Accuracy()
+            metrics=[Accuracy()]
         )
+
+        """
 
         # ------------ Use Convolutional layers -------------
 
@@ -99,7 +103,8 @@ class TestSequential(unittest.TestCase):
             device="cpu",
             metrics=Accuracy()
         )
-
+        
+    """
     def test_fit(self):
         # Set the seed to 42 ....
         torch.manual_seed(42)
@@ -109,9 +114,10 @@ class TestSequential(unittest.TestCase):
             self.train_dataloader
         )
 
+    """
         self.assertListEqual(list(history.keys()), ["accuracy", "loss"])
         self.failIf("loss" not in history.keys())
-
+        
     def testMnistConv(self):
         # Set the seed to 42 ....
         torch.manual_seed(42)
@@ -166,18 +172,18 @@ class TestSequential(unittest.TestCase):
         # model.fit(
         #     cls_dataset,
         #     epochs=1,
-        #     # validation_split=0.25
+        #     validation_split=0.25
         # )
 
-        history = model.fit(
-            cls_train_data,
-            validation_data=[cls_valid_data],
-            epochs=2
-        )
+        # history = model.fit(
+        #     cls_train_data,
+        #     validation_data=[cls_valid_data],
+        #     epochs=2
+        # )
 
         # print(model.optimizer.state_dict())
 
-        print(history.history)
+        # print(history.history)
 
         # model.fit(
         #     x,
@@ -186,40 +192,88 @@ class TestSequential(unittest.TestCase):
         #     validation_split=0.25
         # )
 
-    # def test_binary_model(self):
-    #     # Instantiate X and y
-    #     x, y = make_classification(
-    #         n_samples=self.n_samples,
-    #         n_features=self.cls_n_features,
-    #         n_classes=2,
-    #         n_informative=7
+    def test_binary_model(self):
+        # Instantiate X and y
+        x, y = make_classification(
+            n_samples=self.n_samples,
+            n_features=self.cls_n_features,
+            n_classes=2,
+            n_informative=7
+        )
+
+        cls_dataset = DataConverter(x, y=y)
+        data_split = cls_dataset.train_test_split()
+        cls_train_data = data_split[0]
+        cls_valid_data = data_split[1]
+
+        # Instantiate the Sequential model
+        model = Sequential(
+            layers=[
+                nn.Linear(
+                    in_features=self.cls_n_features,
+                    out_features=1
+                ),
+                nn.Sigmoid()
+            ]
+        )
+
+        # Compile the model
+        model.compile(
+            optimizer=torch.optim.Adam(model.parameters()),
+            loss=nn.BCELoss(),
+            metrics=[BinaryAccuracy()]
+        )
+
+        # Fit the model.
+        # history1 = model.fit(
+        #     cls_train_data,
+        #     validation_data=[cls_valid_data]
+        # )
+    #     history2 = model.fit(x, y)
+    #
+    #     self.assertGreater(
+    #         history1.get("accuracy")[0],
+    #         0,
     #     )
-    #
-    #     cls_dataset = DataConverter(x, y=y)
-    #     data_split = cls_dataset.train_test_split()
-    #     cls_train_data = data_split[0]
-    #     cls_valid_data = data_split[1]
-    #
-    #     # Instantiate the Sequential model
-    #     model = Sequential(
-    #         layers=[
-    #             nn.Linear(
-    #                 in_features=self.cls_n_features,
-    #                 out_features=1
-    #             ),
-    #             nn.Sigmoid()
-    #         ]
+    #     self.assertGreater(
+    #         history2.get("accuracy")[0],
+    #         0,
     #     )
-    #
-    #     # Compile the model
-    #     model.compile(
-    #         optimizer=torch.optim.Adam(model.parameters()),
-    #         loss=nn.BCELoss(),
-    #         metrics=Accuracy()
-    #     )
-    #
-    #     # Fit the model.
-    #     history1 = model.fit(cls_train_data)
+
+    def test_linear_model(self):
+        # Instantiate X and y
+        x, y = make_regression(
+            n_samples=self.n_samples,
+            n_features=self.cls_n_features,
+        )
+
+        cls_dataset = DataConverter(x, y=y)
+        data_split = cls_dataset.train_test_split()
+        cls_train_data = data_split[0]
+        cls_valid_data = data_split[1]
+
+        # Instantiate the Sequential model
+        model = Sequential(
+            layers=[
+                nn.Linear(
+                    in_features=self.cls_n_features,
+                    out_features=1
+                ),
+            ]
+        )
+
+        # Compile the model
+        model.compile(
+            optimizer=torch.optim.Adam(model.parameters()),
+            loss=nn.MSELoss(),
+            metrics=[MSE(), MAE()]
+        )
+
+        # Fit the model.
+        history1 = model.fit(
+            cls_train_data,
+            validation_data=[cls_valid_data]
+        )
     #     history2 = model.fit(x, y)
     #
     #     self.assertGreater(

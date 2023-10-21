@@ -157,7 +157,7 @@ class Sequential(_nn.Module):
         for batch, (x, y) in enumerate(data_loader):
 
             # Switch to device
-            x, y = x.to(self.__device), y.to(self.__device)
+            x, y = x.to(self.__device), torch.tensor(y).to(self.__device)
 
             if self.__model is None:
                 raise TypeError('Compile the model before fitting it with `model.compile`')
@@ -166,10 +166,12 @@ class Sequential(_nn.Module):
                 yhat = self.__model(x.float())
 
             # *** Backpropagation Process ***
-
             # Compute error by measure the degree of dissimilarity
             # from obtained result in target
-            criterion = self.__loss(yhat, y)
+            if len(yhat.detach().numpy()) > 1:
+                criterion = self.__loss(yhat, y)
+            else:
+                criterion = self.__loss(yhat, torch.tensor([y]).float())
 
             # Reset the gradient of the model parameters
             # Gradients by default add up; to prevent double-counting,
@@ -234,7 +236,10 @@ class Sequential(_nn.Module):
                 predictions = self.__model(x.float())
 
                 # Compute the loss(error)
-                criterion = self.__loss(predictions, y)
+                if len(predictions.detach().numpy()) > 1:
+                    criterion = self.__loss(predictions, y)
+                else:
+                    criterion = self.__loss(predictions, torch.tensor([y]).float())
 
                 # Add loss, y and predictions to empty lists
                 loss_list.append(criterion.item())

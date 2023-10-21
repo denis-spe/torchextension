@@ -34,6 +34,7 @@ class DataConverter(_Dataset):
 
         x = torch.tensor(self.X[idx, :])
         y = torch.tensor(self.y)[idx]
+        # print(self.y.reshape(-1, 1))
 
         if self.transform:
             x = self.transform(x)
